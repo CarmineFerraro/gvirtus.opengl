@@ -47,13 +47,15 @@
  */
 class Backend : public Observer {
 public:
-    /** 
+    Backend();
+    /**
      * Starts the Backend. The call to Start() will make the Backend to serve
      * forever.
      */
     void Start(Communicator * communicator);
     void EventOccurred(std::string & event, void * object);
-    virtual Handler *GetHandler() = 0;
+private:
+    std::vector<GetHandler_t> mHandlers;
 };
 
 #endif	/* _BACKEND_H */

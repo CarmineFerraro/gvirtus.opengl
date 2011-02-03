@@ -36,6 +36,8 @@
 #ifndef _PROCESS_H
 #define	_PROCESS_H
 
+#include <vector>
+
 #include "Subprocess.h"
 #include "Observable.h"
 #include "Communicator.h"
@@ -47,13 +49,13 @@
  */
 class Process : public Subprocess, public Observable {
 public:
-    Process(const Communicator *communicator, Handler *handler);
+    Process(const Communicator *communicator, std::vector<Handler *> *handlers);
     virtual ~Process();
     void Setup();
     void Execute(void * arg);
 private:
     Communicator * mpCommunicator;
-    Handler * mpHandler;
+    std::vector<Handler *> *mpHandlers;
 };
 
 #endif	/* _PROCESS_H */

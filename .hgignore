@@ -39,8 +39,8 @@
 glob:\.deps/
 glob:Debug/
 glob:Release/
-^test/Makefile$
-^test/Makefile\.in$
+Makefile$
+Makefile\.in$
 ^cuda/backend/gvirtus-cuda-backend$
 ^cuda/backend/Makefile\.in$
 ^cuda/backend/Makefile$
@@ -51,3 +51,4 @@ glob:Release/
 ^test/.*\.txt$
 ^test/.*\.log$
 ^test/.*\.csv$
+^cudadr/backend/gvirtus-cudadr-backend$

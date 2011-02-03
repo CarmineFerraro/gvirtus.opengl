@@ -38,13 +38,14 @@
 #include <iostream>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 using namespace std;
 
-Process::Process(const Communicator *communicator, Handler *handler)
+Process::Process(const Communicator *communicator, vector<Handler *> *handlers)
 : Subprocess(), Observable() {
     mpCommunicator = const_cast<Communicator *> (communicator);
-    mpHandler = handler;
+    mpHandlers = handlers;
 }
 
 Process::~Process() {
@@ -74,14 +75,21 @@ void Process::Execute(void * arg) {
     Buffer * input_buffer = new Buffer();
     while (getstring(mpCommunicator, routine)) {
         input_buffer->Reset(mpCommunicator);
-        Result * result;
-        try {
-            result = mpHandler->Execute(routine, input_buffer);
-        } catch (string e) {
-            cout << "[Process " << GetPid() << "]: Exception " << e
-                    << "." << endl;
-            result = new Result(-1, new Buffer());
+        Handler *h = NULL;
+        for(vector<Handler *>::iterator i = mpHandlers->begin();
+                i != mpHandlers->end(); i++) {
+            if((*i)->CanExecute(routine)) {
+                h = *i;
+                break;
+            }
         }
+        Result * result;
+        if(h == NULL) {
+            cout << "[Process " << GetPid() << "]: Requested unknown routine "
+                    << routine << "." << endl;
+            result = new Result(-1, new Buffer());
+        } else
+            result = h->Execute(routine, input_buffer);
         result->Dump(mpCommunicator);
         if (result->GetExitCode() != 0) {
             cout << "[Process " << GetPid() << "]: Requested '" << routine

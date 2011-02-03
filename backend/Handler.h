@@ -40,8 +40,13 @@
 
 class Handler {
 public:
+    virtual bool CanExecute(std::string routine) = 0;
     virtual Result * Execute(std::string routine, Buffer * input_buffer) = 0;
 };
+
+
+typedef int (*HandlerInit_t)(void);
+typedef Handler *(*GetHandler_t)(void);
 
 #endif	/* HANDLER_H */
 

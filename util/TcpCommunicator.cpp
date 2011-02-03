@@ -108,6 +108,8 @@ void TcpCommunicator::Serve() {
     if ((mSocketFd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
         throw "TcpCommunicator: Can't create socket.";
 
+    memset((char *) &socket_addr, 0, sizeof(struct sockaddr_in));
+
     socket_addr.sin_family = AF_INET;
     socket_addr.sin_port = htons(mPort);
     socket_addr.sin_addr.s_addr = INADDR_ANY;
@@ -115,8 +117,9 @@ void TcpCommunicator::Serve() {
     char on = 1;
     setsockopt(mSocketFd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof (on));
 
-    if (bind(mSocketFd, (struct sockaddr *) & socket_addr,
-            sizeof (struct sockaddr_in)) != 0)
+    int result = bind(mSocketFd, (struct sockaddr *) & socket_addr,
+            sizeof (struct sockaddr_in));
+     if( result != 0)
         throw "TcpCommunicator: Can't bind socket.";
 
     if (listen(mSocketFd, 5) != 0)

@@ -49,7 +49,7 @@ static bool initialized = false;
  *
  */
 void Frontend::Init(Communicator *c) {
-#if 0
+#if 1
     const char *config_file;
 #ifdef _CONFIG_FILE
     if((config_file = getenv("CONFIG_FILE")) == NULL)

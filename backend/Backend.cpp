@@ -23,6 +23,9 @@
  *             Department of Applied Science
  */
 
+#include <vector>
+
+
 /**
  * @file   Backend.cpp
  * @author Giuseppe Coviello <giuseppe.coviello@uniparthenope.it>
@@ -38,13 +41,59 @@
 #include <iostream>
 
 #include "Process.h"
+#include <dlfcn.h>
+#include <string>
+
+using namespace std;
+
+static GetHandler_t LoadModule(const char *name) {
+    void *lib = dlopen(name, RTLD_LAZY);
+    if(lib == NULL) {
+        cerr << "Error loading " << name << ": " << dlerror() << endl;
+        return NULL;
+    }
+
+    HandlerInit_t init = (HandlerInit_t) ((uint64_t) dlsym(lib, "HandlerInit"));
+    if(init == NULL) {
+        dlclose(lib);
+        cerr << "Error loading " << name << ": HandlerInit function not found."
+                << endl;
+        return NULL;
+    }
+
+    if(init() != 0) {
+        dlclose(lib);
+        cerr << "Error loading " << name << ": HandlerInit failed."
+                << endl;
+        return NULL;
+    }
+
+    GetHandler_t sym = (GetHandler_t) ((uint64_t) dlsym(lib, "GetHandler"));
+    if(sym == NULL) {
+        dlclose(lib);
+        cerr << "Error loading " << name << ": " << dlerror() << endl;
+        return NULL;
+    }
+
+    cout << "Loaded module '" << name << "'." << endl;
+
+    return sym;
+}
+
+Backend::Backend() {
+    mHandlers.push_back(LoadModule("libcudart-backend.so"));
+}
 
 void Backend::Start(Communicator * communicator) {
     communicator->Serve();
     while (true) {
         Communicator *client =
                 const_cast<Communicator *> (communicator->Accept());
-        Process *process = new Process(client, GetHandler());
+        vector<Handler *> *h = new vector<Handler *>();
+        for(vector<GetHandler_t>::iterator i = mHandlers.begin();
+                i != mHandlers.end(); i++)
+            h->push_back((*i)());
+        Process *process = new Process(client, h);
         process->Start(NULL);
     }
 }

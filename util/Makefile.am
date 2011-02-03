@@ -30,4 +30,23 @@ VMShmCommunicator.cpp\
 VMShmCommunicator.h\
 VmciCommunicator.cpp\
 VmciCommunicator.h
+
+libutil_includedir=$(includedir)/gvirtus
+libutil_include_HEADERS= \
+AfUnixCommunicator.h\
+Buffer.h\
+Communicator.h\
+ConfigFile.h\
+CudaUtil.h\
+Mutex.h\
+Observable.h\
+Observer.h\
+Result.h\
+ShmCommunicator.h\
+Subprocess.h\
+TcpCommunicator.h\
+Thread.h\
+VMShmCommunicator.h\
+VmciCommunicator.h
+
 AM_CXXFLAGS=-fPIC
