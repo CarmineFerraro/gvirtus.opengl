@@ -72,7 +72,7 @@
 #include <iostream>
 #include "ConfigFile.h"
 #include "Communicator.h"
-#include "Backend.h"
+#include "GLBackend.h"
 
 using namespace std;
 
@@ -81,10 +81,13 @@ int main(int argc, char** argv) {
     if(argc == 2)
         conf = string(argv[1]);
     try {
-        ConfigFile *cf = new ConfigFile(conf.c_str());
-        Communicator *c = Communicator::Get(cf->Get("communicator"));
-        delete cf;
-        Backend b;
+        //ConfigFile *cf = new ConfigFile(conf.c_str());
+        //Communicator *c = Communicator::Get(cf->Get("communicator"));
+        string communicator = string(getenv("COMMUNICATOR"));
+        Communicator *c = Communicator::Get(communicator);
+
+        //delete cf;
+        GLBackend b;
         b.Start(c);
         delete c;
     } catch (string &e) {

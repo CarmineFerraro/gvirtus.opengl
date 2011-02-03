@@ -38,6 +38,7 @@
 
 #include <Frontend.h>
 #include <Communicator.h>
+#include <TcpCommunicator.h>
 
 #include <GL/glx.h>
 
@@ -50,10 +51,10 @@ enum ShmType {
 
 static Buffer *mspRoutines;
 static bool msRoutinesEmpty;
-pthread_mutex_t mMutex = PTHREAD_MUTEX_INITIALIZER;
 static ShmType mShmType;
 static char *mspShmName;
 static char *mspFramebuffer;
+static TcpCommunicator *mspDispenserCommunicator;
 static pthread_spinlock_t *mspLock;
 
 static void __attribute__((constructor)) _GL_init(void) {
@@ -83,11 +84,9 @@ static void __attribute__((constructor)) _GL_init(void) {
 static inline void FlushRoutines() {
     if (msRoutinesEmpty)
         return;
-    pthread_mutex_lock(&mMutex);
     Frontend *f = Frontend::GetFrontend();
     f->Prepare();
     f->Execute("gl__ExecuteRoutines", mspRoutines);
-    pthread_mutex_unlock(&mMutex);
     mspRoutines->Reset();
     msRoutinesEmpty = true;
 }
@@ -100,7 +99,6 @@ static inline Buffer *AddRoutine(const char *routine) {
 
 static inline Frontend *GetFrontend() {
     FlushRoutines();
-    pthread_mutex_lock(&mMutex);
     Frontend *f = Frontend::GetFrontend();
     f->Prepare();
     return f;
@@ -119,6 +117,8 @@ static void InitFramebuffer() {
     if (mShmType == NONE) {
         mspFramebuffer = new char[300 * 300 * sizeof (int) ];
         mspLock = NULL;
+        mspDispenserCommunicator = new TcpCommunicator(mspShmName);
+        mspDispenserCommunicator->Connect();
         return;
     } else if (mShmType == POSIX) {
         fd = shm_open(mspShmName, O_RDWR, S_IRUSR | S_IWUSR);
@@ -130,33 +130,40 @@ static void InitFramebuffer() {
     mspLock = reinterpret_cast<pthread_spinlock_t *> (mmap(NULL,
             300 * 300 * sizeof (int), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
             0));
-    mspFramebuffer = ((char *) mspLock) + sizeof(pthread_spinlock_t);
+    mspFramebuffer = ((char *) mspLock) + sizeof (pthread_spinlock_t);
 }
 
 static void Lock() {
-    if(mspLock)
+    if (mspLock)
         pthread_spin_lock(mspLock);
 }
 
 static void Unlock() {
-    if(mspLock)
+    if (mspLock)
         pthread_spin_unlock(mspLock);
 }
 
 static inline char *GetFramebuffer() {
     if (mShmType != NONE)
         return mspFramebuffer;
-    pthread_mutex_lock(&mMutex);
+#if 0
     Frontend *f = Frontend::GetFrontend();
     f->Prepare();
     f->Execute("gl__GetBuffer");
     memmove(mspFramebuffer, f->GetOutputBuffer()->GetBuffer(),
             300 * 300 * sizeof (int));
-    pthread_mutex_unlock(&mMutex);
+#endif
+    char token = 0;
+    cout << mspDispenserCommunicator << endl;
+    cout << "Requested Framebuffer" << endl;
+    mspDispenserCommunicator->Write(&token, 1);
+    mspDispenserCommunicator->Read(mspFramebuffer, 600 * 450 * sizeof (int));
+    cout << "Obtained Framebuffer" << endl;
     return mspFramebuffer;
 }
 
 static void *update(void *__w) {
+    cout << "UPDATER" << endl;
     WindowInfo *w = (WindowInfo *) __w;
     InitFramebuffer();
     char *buffer;
@@ -164,11 +171,13 @@ static void *update(void *__w) {
     while (true) {
         Lock();
         buffer = GetFramebuffer();
-        for(int i = 0; i < 300 / 2; i++) {
-            memmove(row, buffer + (299 - i) * 300 * sizeof(int), 300 * sizeof(int));
-            memmove(buffer + (299 - i) * 300 * sizeof(int), buffer + i * 300 * sizeof(int), 300 * sizeof(int));
-            memmove(buffer + i * 300 * sizeof(int), row, 300 * sizeof(int));
+#if 0
+        for (int i = 0; i < 300 / 2; i++) {
+            memmove(row, buffer + (299 - i) * 300 * sizeof (int), 300 * sizeof (int));
+            memmove(buffer + (299 - i) * 300 * sizeof (int), buffer + i * 300 * sizeof (int), 300 * sizeof (int));
+            memmove(buffer + i * 300 * sizeof (int), row, 300 * sizeof (int));
         }
+#endif
         XImage *img = XCreateImage(w->mpDpy, CopyFromParent,
                 24, ZPixmap, 0, buffer, w->mWidth, w->mHeight, 32,
                 w->mWidth * 4);
@@ -176,9 +185,31 @@ static void *update(void *__w) {
         XPutImage(w->mpDpy, w->mDrawable, DefaultGC(w->mpDpy, 0), img, 0, 0, 0,
                 0, w->mWidth, w->mHeight);
         Unlock();
-        usleep(5000);
+        usleep(1000);
     }
     return NULL;
+}
+
+map<GLXDrawable, pthread_t> msUpdaters;
+
+static inline void InstantiateUpdater(Display *dpy, GLXDrawable drawable) {
+    map<GLXDrawable, pthread_t>::iterator i = msUpdaters.find(drawable);
+    if(i != msUpdaters.end())
+        return;
+    Frontend *f = GetFrontend();
+    Buffer *in = f->GetInputBuffer();
+    in->Add(drawable);
+    f->Execute("gl__GetDispenser");
+    Buffer *out = f->GetOutputBuffer();
+    mspShmName = strdup(out->AssignString());
+    WindowInfo *w = new WindowInfo;
+    w->mDrawable = drawable;
+    w->mpDpy = dpy;
+    w->mWidth = 600;
+    w->mHeight = 450;
+    pthread_t tid;
+    pthread_create(&tid, NULL, update, w);
+    msUpdaters.insert(make_pair(drawable, tid));
 }
 
 extern "C" XVisualInfo* glXChooseVisual(Display *dpy, int screen, int * attribList) {
@@ -196,7 +227,6 @@ extern "C" XVisualInfo* glXChooseVisual(Display *dpy, int screen, int * attribLi
     XVisualInfo *vis = out->Get<XVisualInfo > (1);
     vis->visual = out->Get<Visual > (1);
     VisualID id = out->Get<VisualID > ();
-    pthread_mutex_unlock(&mMutex);
 
     XVisualInfo vis_template, *visual;
     vis_template.screen = screen;
@@ -221,7 +251,6 @@ extern "C" GLXContext glXCreateContext(Display *dpy, XVisualInfo *vis,
         return NULL;
     Buffer *out = f->GetOutputBuffer();
     GLXContext ctx = (GLXContext) out->Get<uint64_t > ();
-    pthread_mutex_unlock(&mMutex);
     return ctx;
 }
 
@@ -230,7 +259,7 @@ extern "C" Bool glXMakeCurrent(Display *dpy, GLXDrawable drawable,
     Frontend *f = GetFrontend();
     Buffer *in = f->GetInputBuffer();
     //in->AddString(XDisplayString(dpy));
-    //in->Add(drawable);
+    in->Add(drawable);
     in->Add((uint64_t) ctx);
     bool use_shm = mShmType != NONE;
     cout << "use_shm: " << use_shm << endl;
@@ -238,17 +267,11 @@ extern "C" Bool glXMakeCurrent(Display *dpy, GLXDrawable drawable,
     cout << ctx << endl << use_shm << endl;
     f->Execute("glXMakeCurrent");
     Buffer *out = f->GetOutputBuffer();
-    WindowInfo *w = new WindowInfo;
-    w->mDrawable = drawable;
-    w->mpDpy = dpy;
-    w->mWidth = 300;
-    w->mHeight = 300;
     Bool result = out->Get<Bool > ();
-    if (mShmType != NONE)
-        mspShmName = strdup(out->AssignString());
-    pthread_t tid;
-    pthread_create(&tid, NULL, update, w);
-    pthread_mutex_unlock(&mMutex);
+    //mspShmName = strdup(out->AssignString());
+    //pthread_t tid;
+    //pthread_create(&tid, NULL, update, w);
+    InstantiateUpdater(dpy, drawable);
     return result;
 }
 
@@ -260,19 +283,18 @@ extern "C" const char *glXQueryExtensionsString(Display *dpy, int screen) {
     f->Execute("glXQueryExtensionsString");
     Buffer *out = f->GetOutputBuffer();
     char *result = strdup(out->AssignString());
-    pthread_mutex_unlock(&mMutex);
     return result;
 }
 
 extern "C" Bool glXQueryExtension(Display *dpy, int *errorBase,
-    int *eventBase) {
+        int *eventBase) {
     Frontend *f = GetFrontend();
     f->Execute("glXQueryExtension");
-    if(f->GetExitCode() != 0)
+    if (f->GetExitCode() != 0)
         return False;
-    if(errorBase)
+    if (errorBase)
         *errorBase = f->GetOutputBuffer()->Get<int>();
-    if(eventBase)
+    if (eventBase)
         *eventBase = f->GetOutputBuffer()->Get<int>();
     return True;
 }
@@ -283,7 +305,6 @@ extern "C" GLuint glGenLists(GLsizei range) {
     in->Add(range);
     f->Execute("glGenLists");
     GLuint result = f->GetOutputBuffer()->Get<GLuint > ();
-    pthread_mutex_unlock(&mMutex);
     return result;
 }
 
@@ -316,6 +337,28 @@ extern "C" void glLightfv(GLenum light, GLenum pname, const GLfloat *params) {
 extern "C" void glEnable(GLenum cap) {
     Buffer *in = AddRoutine("glEnable");
     in->Add(cap);
+}
+
+extern "C" void glDisable(GLenum cap) {
+    Buffer *in = AddRoutine("glDisable");
+    in->Add(cap);
+}
+
+extern "C" void glIndexi(GLint c) {
+    Buffer *in = AddRoutine("glIndexi");
+    in->Add(c);
+}
+
+extern "C" void glColor3f(GLfloat red, GLfloat green, GLfloat blue) {
+    Buffer *in = AddRoutine("glColor3f");
+    in->Add(red);
+    in->Add(green);
+    in->Add(blue);
+}
+
+extern "C" void glCullFace(GLenum mode) {
+    Buffer *in = AddRoutine("glCullFace");
+    in->Add(mode);
 }
 
 extern "C" void glNewList(GLuint list, GLenum mode) {
@@ -448,7 +491,6 @@ extern "C" void glXSwapBuffers(Display *dpy, GLXDrawable drawable) {
     //in->AddString(XDisplayString(dpy));
     in->Add(drawable);
     f->Execute("glXSwapBuffers");
-    pthread_mutex_unlock(&mMutex);
     //XImage *img = XCreateImage(dpy, CopyFromParent,
     //        24, ZPixmap, 0, GetFramebuffer(), 300, 300, 32,
     //        300 * 4);
@@ -457,13 +499,14 @@ extern "C" void glXSwapBuffers(Display *dpy, GLXDrawable drawable) {
     //        0, 300, 300);
 }
 
-extern "C" GLXFBConfig * glXChooseFBConfig(	Display *  	dpy,
- 	int  	screen,
- 	const int *  	attrib_list,
- 	int *  	nelements) {}
+extern "C" GLXFBConfig * glXChooseFBConfig(Display * dpy,
+        int screen,
+        const int * attrib_list,
+        int * nelements) {
+}
 
-extern "C" XVisualInfo * glXGetVisualFromFBConfig(	Display *  	dpy,
- 	GLXFBConfig  	config) {
+extern "C" XVisualInfo * glXGetVisualFromFBConfig(Display * dpy,
+        GLXFBConfig config) {
 
     int n;
     XVisualInfo vis_template, *visual;
@@ -475,16 +518,71 @@ extern "C" XVisualInfo * glXGetVisualFromFBConfig(	Display *  	dpy,
 
 }
 
-extern "C" GLXContext glXCreateNewContext(	Display *  	dpy,
- 	GLXFBConfig  	config,
- 	int  	render_type,
- 	GLXContext  	share_list,
- 	Bool  	direct) {
+extern "C" GLXContext glXCreateNewContext(Display * dpy,
+        GLXFBConfig config,
+        int render_type,
+        GLXContext share_list,
+        Bool direct) {
+    cout << "glXCreateNewContext" << endl;
     int n;
     XVisualInfo vis_template, *visual;
     vis_template.screen = 0;
     vis_template.visualid = XVisualIDFromVisual(DefaultVisual(dpy, 0));
 
-    return glXCreateContext(dpy,    XGetVisualInfo(dpy, VisualScreenMask | VisualIDMask,
+    return glXCreateContext(dpy, XGetVisualInfo(dpy, VisualScreenMask | VisualIDMask,
             &vis_template, &n), share_list, direct);
+}
+
+extern "C" Bool glXIsDirect(Display * dpy,
+        GLXContext ctx) {
+    return False;
+}
+
+extern "C" Bool glXMakeContextCurrent(Display * display, GLXDrawable draw,
+        GLXDrawable read, GLXContext ctx) {
+    Frontend *f = GetFrontend();
+    Buffer *in = f->GetInputBuffer();
+    in->Add(draw);
+    in->Add(read);
+    in->Add((uint64_t) ctx);
+    f->Execute("glXMakeContextCurrent");
+    Buffer *out = f->GetOutputBuffer();
+    Bool result = out->Get<Bool > ();
+    InstantiateUpdater(display, draw);
+    InstantiateUpdater(display, read);
+    return result;
+}
+
+extern "C" void glOrtho(GLdouble left, GLdouble right, GLdouble bottom,
+        GLdouble top, GLdouble nearVal, GLdouble farVal) {
+    Buffer *in = AddRoutine("glOrtho");
+    in->Add(left);
+    in->Add(right);
+    in->Add(top);
+    in->Add(bottom);
+    in->Add(nearVal);
+    in->Add(farVal);
+}
+
+extern "C" void glVertex2i(GLint x, GLint y) {
+    Buffer *in = AddRoutine("glVertex2i");
+    in->Add(x);
+    in->Add(y);
+}
+
+extern "C" void glVertex2f(GLfloat x, GLfloat y) {
+    Buffer *in = AddRoutine("glVertex2f");
+    in->Add(x);
+    in->Add(y);
+}
+
+extern "C" void glScalef(GLfloat x, GLfloat y, GLfloat z) {
+    Buffer *in = AddRoutine("glScalef");
+    in->Add(x);
+    in->Add(y);
+    in->Add(z);
+}
+
+extern "C" void glFlush() {
+    Buffer *in = AddRoutine("glFlush");
 }

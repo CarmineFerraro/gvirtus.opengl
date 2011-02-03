@@ -1,17 +1,9 @@
-bin_PROGRAMS = gvirtus-backend
-gvirtus_backend_SOURCES = \
-Backend.cpp\
-Backend.h\
-Handler.cpp\
-Handler.h\
-Process.cpp\
-Process.h\
+sbin_PROGRAMS = gvirtus-opengl-backend
+gvirtus_opengl_backend_SOURCES = \
+GLBackend.cpp\
+GLBackend.h\
+GLHandler.cpp\
+GLHandler.h\
 main.cpp
-gvirtus_backend_includedir=$(includedir)/gvirtus
-gvirtus_backend_include_HEADERS= \
-Backend.h\
-Handler.h\
-Process.h
-gvirtus_backend_CXXFLAGS = -fPIC
-gvirtus_backend_LDFLAGS = -Wl,--export-dynamic -Wl,--whole-archive -Wl,../util/libutil.a -Wl,--no-whole-archive
-gvirtus_backend_LDADD = -lrt -ldl
+gvirtus_opengl_backend_LDADD = ../../backend/libbackend.a ../../util/libutil.a -lGL -lrt
+
