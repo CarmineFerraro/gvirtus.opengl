@@ -186,7 +186,7 @@ static void *update(void *__w) {
         XPutImage(w->mpDpy, w->mDrawable, DefaultGC(w->mpDpy, 0), img, 0, 0, 0,
                 0, w->mWidth, w->mHeight);
         Unlock();
-        usleep(1000);
+        usleep(25000);
     }
     return NULL;
 }
