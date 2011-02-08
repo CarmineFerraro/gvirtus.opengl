@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="69">
+  <logicalFolder name="root" displayName="root" projectFiles="true">
+    <df name="backend" root="backend">
+      <in>GLHandler.cpp</in>
+      <in>GLHandler.h</in>
+      <in>GLHandler_b.cpp</in>
+      <in>GLHandler_g.cpp</in>
+      <in>GLHandler_m.cpp</in>
+      <in>GLHandler_v.cpp</in>
+      <in>GLHandler_x.cpp</in>
+    </df>
+    <df name="frontend" root="frontend">
+      <in>GL.cpp</in>
+      <in>GL.h</in>
+      <in>GL_b.cpp</in>
+      <in>GL_d.cpp</in>
+      <in>GL_e.cpp</in>
+      <in>GL_g.cpp</in>
+      <in>GL_m.cpp</in>
+      <in>GL_u.cpp</in>
+      <in>GL_unsupported.cpp</in>
+      <in>GL_unsupported.h</in>
+      <in>GL_v.cpp</in>
+      <in>GL_x.cpp</in>
+    </df>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+      <itemPath>Makefile-gvirtus-opengl.mk</itemPath>
+      <itemPath>configure</itemPath>
+      <itemPath>configure.in</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceRootList>
+    <Elem>backend</Elem>
+    <Elem>frontend</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile-gvirtus-opengl.mk</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <developmentServer>localhost</developmentServer>
+        <compilerSet>GNU|GNU</compilerSet>
+        <platform>2</platform>
+      </toolsSet>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>$(MAKE) -f Makefile</buildCommand>
+          <cleanCommand>$(MAKE) -f Makefile clean</cleanCommand>
+          <executablePath></executablePath>
+          <ccTool>
+            <incDir>
+              <pElem>/home/cjg/gvirtus/include/gvirtus</pElem>
+            </incDir>
+          </ccTool>
+        </makeTool>
+      </makefileType>
+    </conf>
+  </confs>
+</configurationDescriptor>

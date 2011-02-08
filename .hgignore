@@ -52,3 +52,5 @@ Makefile\.in$
 ^test/.*\.log$
 ^test/.*\.csv$
 ^cudadr/backend/gvirtus-cudadr-backend$
+^backend/GLHandler_handlers\.h$
+^backend/GLHandler_handlerspair\.h$

@@ -1,7 +1,7 @@
 /*
  * gVirtuS -- A GPGPU transparent virtualization component.
  *
- * Copyright (C) 2009-2010  The University of Napoli Parthenope at Naples.
+ * Copyright (C) 2009-2011  The University of Napoli Parthenope at Naples.
  *
  * This file is part of gVirtuS.
  *
@@ -22,6 +22,9 @@
  * Written by: Giuseppe Coviello <giuseppe.coviello@uniparthenope.it>,
  *             Department of Applied Science
  */
+
+#include <map>
+
 
 /**
  * @file   Backend.cpp
@@ -49,13 +52,26 @@ using namespace std;
 
 map<string, GLHandler::GLRoutineHandler> *GLHandler::mspHandlers = NULL;
 
+extern "C" int HandlerInit() {
+    return 0;
+}
+
+extern "C" Handler *GetHandler() {
+    return new GLHandler();
+}
+
 GLHandler::GLHandler() {
     Initialize();
     mpFramebuffer = NULL;
+    mpLock = NULL;
 }
 
 GLHandler::~GLHandler() {
 
+}
+
+bool GLHandler::CanExecute(std::string routine) {
+    return mspHandlers->find(routine) != mspHandlers->end();
 }
 
 Result * GLHandler::Execute(std::string routine, Buffer * input_buffer) {
@@ -69,6 +85,7 @@ Result * GLHandler::Execute(std::string routine, Buffer * input_buffer) {
         cout << ex << endl;
         cout << strerror(errno) << endl;
     }
+    return NULL;
 }
 
 struct DispenserArgs {
@@ -86,8 +103,9 @@ static void *FramebufferDispenser(void *args) {
         while (true) {
             c->Read(&token, 1);
             pThis->Lock();
-            c->Write(pThis->GetFramebuffer(), 600 * 450 * sizeof (int));
+            c->Write(pThis->GetFramebuffer(), 512 * 512 * sizeof (int));
             pThis->Unlock();
+            c->Sync();
         }
     } catch (const char *ex) {
         cout << "FramebufferDispenser" << endl;
@@ -109,6 +127,7 @@ const char *GLHandler::InitFramebuffer(size_t size, bool use_shm) {
         const char *comm = "tcp://127.0.0.1:4444";
         communicator = (char *) comm;
         mpFramebuffer = new char[size];
+        memset(mpFramebuffer, 0, size);
         cout << (void *) mpFramebuffer << endl;
         DispenserArgs *da = new DispenserArgs;
         da->mpHandler = this;
@@ -146,60 +165,23 @@ void GLHandler::Initialize() {
         return;
     mspHandlers = new map<string, GLHandler::GLRoutineHandler > ();
 
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(XChooseVisual));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(XCreateContext));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(XMakeCurrent));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(XMakeContextCurrent));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(XQueryExtensionsString));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(XQueryExtension));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(GenLists));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(NewList));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(ShadeModel));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Normal3f));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Begin));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Vertex3f));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(End));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(EndList));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Viewport));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(MatrixMode));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(LoadIdentity));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Frustum));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Translatef));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(CallList));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Clear));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(PopMatrix));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(PushMatrix));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Rotatef));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(XSwapBuffers));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Enable));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Disable));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Lightfv));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Materialfv));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Indexi));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Color3f));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Vertex2f));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Vertex2i));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Scalef));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Flush));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(Ortho));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(CullFace));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(__ExecuteRoutines));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(__GetBuffer));
-    mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR(__GetDispenser));
+#include "GLHandler_handlerspair.h"
 }
 
 
-//static Display *dpy = NULL;
+static Display *mspDpy = NULL;
 //static XVisualInfo *info = NULL;
 
-static Display *GetDisplay() {
-    static Display *dpy = NULL;
-    if (dpy == NULL)
-        dpy = XOpenDisplay(NULL);
-    return dpy;
+Display *GetDisplay() {
+    if (mspDpy == NULL) {
+        cout << "Making a new Display connection." << endl;
+        mspDpy = XOpenDisplay(NULL);
+        cout << "Established Display connection: " << mspDpy << endl;
+    }
+    return mspDpy;
 }
 
-static XVisualInfo *GetVisualInfo() {
+XVisualInfo *GetVisualInfo() {
     static XVisualInfo *vi = NULL;
     if (vi == NULL) {
         int attribList[] = {
@@ -217,251 +199,19 @@ static XVisualInfo *GetVisualInfo() {
 static map<GLXDrawable, GLXDrawable> msDrawables;
 static map<GLXDrawable, const char *> msDispensers;
 
-static GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis) {
+GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis) {
     map<GLXDrawable, GLXDrawable>::iterator i = msDrawables.find(handler);
     if (i != msDrawables.end())
         return i->second;
+    cout << "Creating new Window with handler: " << handler << endl;
     GLXDrawable drawable = XCreateSimpleWindow(GetDisplay(),
-            XRootWindow(GetDisplay(), DefaultScreen(GetDisplay())), 0, 0, 600,
-            450, 0, 0, 0);
+            XRootWindow(GetDisplay(), DefaultScreen(GetDisplay())), 0, 0, 512,
+            512, 0, 0, 0);
     XMapWindow(GetDisplay(), drawable);
     msDrawables.insert(make_pair(handler, drawable));
-    msDispensers.insert(make_pair(handler, pThis->InitFramebuffer(600 * 450 * sizeof(int), false)));
+    msDispensers.insert(make_pair(handler, pThis->InitFramebuffer(512 * 512
+            * sizeof(int), false)));
     return drawable;
-}
-
-GL_ROUTINE_HANDLER(XChooseVisual) {
-    //dpy = XOpenDisplay(in->AssignString());
-    in->AssignString();
-    int screen = in->Get<int>();
-    int *attribList = in->AssignAll<int>();
-    //info = glXChooseVisual(dpy, screen, attribList);
-    //cout << attribList << endl;
-    //cout << screen << endl;
-    //for(int i = 0; attribList[i] != None; i++)
-    //    cout << attribList[i] << endl;
-    //if(info == NULL)
-    //    return new Result(-1);
-    //cout << XVisualIDFromVisual(info->visual) << endl;
-    XVisualInfo *info = GetVisualInfo();
-    Buffer *out = new Buffer();
-    out->Add(info->visual);
-    out->Add(info);
-    out->Add(XVisualIDFromVisual(info->visual));
-    return new Result(0, out);
-}
-
-GL_ROUTINE_HANDLER(XCreateContext) {
-    cout << "cretecontex" << endl;
-    //Display *dpy = XOpenDisplay(in->AssignString());
-    //in->Get<Visual>(1);
-    GLXContext shareList = (GLXContext) in->Get<uint64_t > ();
-    Bool direct = in->Get<Bool > ();
-    cout << shareList << endl;
-    cout << direct << endl;
-    GLXContext ctx = glXCreateContext(GetDisplay(), GetVisualInfo(), shareList, direct);
-    cout << ctx << endl;
-    if (ctx == NULL)
-        return new Result(-1);
-    Buffer *out = new Buffer();
-    out->Add((uint64_t) ctx);
-    return new Result(0, out);
-}
-
-GL_ROUTINE_HANDLER(XMakeCurrent) {
-    cout << "makecurrent" << endl;
-    //Display *dpy = XOpenDisplay(in->AssignString());
-    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis);
-    GLXContext ctx = (GLXContext) in->Get<uint64_t > ();
-    bool use_shm = in->Get<bool>();
-    cout << ctx << endl << use_shm << endl;
-    //XMapWindow(dpy, drawable2);
-    Bool result = glXMakeCurrent(GetDisplay(), drawable, ctx);
-    cout << "result: " << result << endl;
-    Buffer *out = new Buffer();
-    out->Add(result);
-    //out->AddString(name);
-    return new Result((result == false ? -1 : 0), out);
-}
-
-GL_ROUTINE_HANDLER(XQueryExtensionsString) {
-    //Display *dpy = XOpenDisplay(in->AssignString());
-    int screen = in->Get<int>();
-    const char *result = glXQueryExtensionsString(GetDisplay(), screen);
-    Buffer *out = new Buffer();
-    out->AddString(result);
-    return new Result(0, out);
-}
-
-GL_ROUTINE_HANDLER(GenLists) {
-    GLsizei range = in->Get<GLsizei > ();
-    GLuint result = glGenLists(range);
-    Buffer *out = new Buffer();
-    out->Add(result);
-    return new Result(0, out);
-}
-
-GL_ROUTINE_HANDLER(NewList) {
-    GLuint list = in->Get<GLuint > ();
-    GLenum mode = in->Get<GLenum > ();
-    glNewList(list, mode);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(ShadeModel) {
-    GLenum mode = in->Get<GLenum > ();
-    glShadeModel(mode);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Normal3f) {
-    GLfloat nx = in->Get<GLfloat > ();
-    GLfloat ny = in->Get<GLfloat > ();
-    GLfloat nz = in->Get<GLfloat > ();
-    glNormal3f(nx, ny, nz);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Begin) {
-    GLenum mode = in->Get<GLenum > ();
-    glBegin(mode);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Enable) {
-    GLenum cap = in->Get<GLenum > ();
-    glEnable(cap);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Disable) {
-    GLenum cap = in->Get<GLenum > ();
-    glDisable(cap);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Vertex3f) {
-    GLfloat x = in->Get<GLfloat > ();
-    GLfloat y = in->Get<GLfloat > ();
-    GLfloat z = in->Get<GLfloat > ();
-    glVertex3f(x, y, z);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(End) {
-    glEnd();
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(EndList) {
-    glEndList();
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Viewport) {
-    GLint x = in->Get<GLint > ();
-    GLint y = in->Get<GLint > ();
-    GLsizei width = in->Get<GLsizei > ();
-    GLsizei height = in->Get<GLsizei > ();
-    glViewport(x, y, width, height);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(MatrixMode) {
-    GLenum mode = in->Get<GLenum > ();
-    glMatrixMode(mode);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(LoadIdentity) {
-    glLoadIdentity();
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Frustum) {
-    GLdouble left = in->Get<GLdouble > ();
-    GLdouble right = in->Get<GLdouble > ();
-    GLdouble bottom = in->Get<GLdouble > ();
-    GLdouble top = in->Get<GLdouble > ();
-    GLdouble nearVal = in->Get<GLdouble > ();
-    GLdouble farVal = in->Get<GLdouble > ();
-    glFrustum(left, right, bottom, top, nearVal, farVal);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Translatef) {
-    GLfloat x = in->Get<GLfloat > ();
-    GLfloat y = in->Get<GLfloat > ();
-    GLfloat z = in->Get<GLfloat > ();
-    glTranslatef(x, y, z);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(CallList) {
-    GLuint list = in->Get<GLuint > ();
-    glCallList(list);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Clear) {
-    GLbitfield mask = in->Get<GLbitfield > ();
-    glClear(mask);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(PopMatrix) {
-    glPopMatrix();
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(PushMatrix) {
-    glPushMatrix();
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Rotatef) {
-    GLfloat angle = in->Get<GLfloat > ();
-    GLfloat x = in->Get<GLfloat > ();
-    GLfloat y = in->Get<GLfloat > ();
-    GLfloat z = in->Get<GLfloat > ();
-    glRotatef(angle, x, y, z);
-    return new Result(0);
-}
-
-
-int *row = new int[300];
-
-GL_ROUTINE_HANDLER(XSwapBuffers) {
-    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis);
-    glXSwapBuffers(GetDisplay(), drawable);
-    pThis->Lock();
-    char *buffer = pThis->GetFramebuffer();
-    glReadPixels(0, 0, 600, 450, GL_BGRA, GL_UNSIGNED_BYTE, buffer);
-#if 0
-    for (int i = 0; i < 300 / 2; i++) {
-        memmove(row, buffer + (299 - i) * 300 * sizeof (int), 300 * sizeof (int));
-        memmove(buffer + (299 - i) * 300 * sizeof (int), buffer + i * 300 * sizeof (int), 300 * sizeof (int));
-        memmove(buffer + i * 300 * sizeof (int), row, 300 * sizeof (int));
-    }
-#endif
-    pThis->Unlock();
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Lightfv) {
-    GLenum light = in->Get<GLenum > ();
-    GLenum pname = in->Get<GLenum > ();
-    GLfloat *params = in->AssignAll<GLfloat > ();
-    glLightfv(light, pname, params);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Materialfv) {
-    GLenum face = in->Get<GLenum > ();
-    GLenum pname = in->Get<GLenum > ();
-    GLfloat *params = in->AssignAll<GLfloat > ();
-    glMaterialfv(face, pname, params);
-    return new Result(0);
 }
 
 GL_ROUTINE_HANDLER(__ExecuteRoutines) {
@@ -485,92 +235,3 @@ GL_ROUTINE_HANDLER(__GetDispenser) {
     return new Result(0, out);
 }
 
-GL_ROUTINE_HANDLER(XQueryExtension) {
-    int errorBase;
-    int eventBase;
-    glXQueryExtension(GetDisplay(), &errorBase, &eventBase);
-    Buffer *out = new Buffer();
-    out->Add(errorBase);
-    out->Add(eventBase);
-    return new Result(0, out);
-}
-
-GL_ROUTINE_HANDLER(XMakeContextCurrent) {
-    GLXDrawable draw = GetDrawable(in->Get<GLXDrawable > (), pThis);
-    GLXDrawable read = GetDrawable(in->Get<GLXDrawable > (), pThis);
-    GLXContext ctx = (GLXContext) in->Get<uint64_t > ();
-    Bool result = glXMakeContextCurrent(GetDisplay(), draw, read, ctx);
-    Buffer *out = new Buffer();
-    out->Add(result);
-    return new Result(0, out);
-}
-
-GL_ROUTINE_HANDLER(Indexi) {
-    GLint c = in->Get<GLint>();
-    glIndexi(c);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Color3f) {
-    GLfloat red = in->Get<GLfloat>();
-    GLfloat green = in->Get<GLfloat>();
-    GLfloat blue = in->Get<GLfloat>();
-    glColor3f(red, green, blue);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Vertex2f) {
-    GLfloat x = in->Get<GLfloat>();
-    GLfloat y = in->Get<GLfloat>();
-    glVertex2f(x, y);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Vertex2i) {
-    GLint x = in->Get<GLint>();
-    GLint y = in->Get<GLint>();
-    glVertex2i(x, y);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Scalef) {
-    GLfloat x = in->Get<GLfloat>();
-    GLfloat y = in->Get<GLfloat>();
-    GLfloat z = in->Get<GLfloat>();
-    glScalef(x, y, z);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Flush) {
-    glFlush();
-    pThis->Lock();
-    char *buffer = pThis->GetFramebuffer();
-    glReadPixels(0, 0, 600, 450, GL_BGRA, GL_UNSIGNED_BYTE, buffer);
-#if 0
-    for (int i = 0; i < 300 / 2; i++) {
-        memmove(row, buffer + (299 - i) * 300 * sizeof (int), 300 * sizeof (int));
-        memmove(buffer + (299 - i) * 300 * sizeof (int), buffer + i * 300 * sizeof (int), 300 * sizeof (int));
-        memmove(buffer + i * 300 * sizeof (int), row, 300 * sizeof (int));
-    }
-#endif
-    pThis->Unlock();
-
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(Ortho) {
-    GLdouble left = in->Get<GLdouble > ();
-    GLdouble right = in->Get<GLdouble > ();
-    GLdouble bottom = in->Get<GLdouble > ();
-    GLdouble top = in->Get<GLdouble > ();
-    GLdouble nearVal = in->Get<GLdouble > ();
-    GLdouble farVal = in->Get<GLdouble > ();
-    glOrtho(left, right, bottom, top, nearVal, farVal);
-    return new Result(0);
-}
-
-GL_ROUTINE_HANDLER(CullFace) {
-    GLenum mode = in->Get<GLenum > ();
-    glCullFace(mode);
-    return new Result(0);
-}

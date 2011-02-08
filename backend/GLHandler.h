@@ -1,7 +1,7 @@
 /*
  * gVirtuS -- A GPGPU transparent virtualization component.
  *
- * Copyright (C) 2009-2010  The University of Napoli Parthenope at Naples.
+ * Copyright (C) 2009-2011  The University of Napoli Parthenope at Naples.
  *
  * This file is part of gVirtuS.
  *
@@ -45,10 +45,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <cuda_runtime_api.h>
-
 #include "Handler.h"
 #include "Result.h"
+
+#include <X11/Xlib.h>
+#include <GL/glx.h>
 
 /**						
  * CudaRtHandler is used by Backend's Process(es) for storing and retrieving
@@ -61,6 +62,7 @@ class GLHandler : public Handler {
 public:
     GLHandler();
     virtual ~GLHandler();
+    bool CanExecute(std::string routine);
     Result * Execute(std::string routine, Buffer * input_buffer);
     const char *InitFramebuffer(size_t size, bool use_shm);
     char *GetFramebuffer();
@@ -80,50 +82,14 @@ private:
     pthread_spinlock_t *mpLock;
 };
 
+Display *GetDisplay();
+GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis);
+XVisualInfo *GetVisualInfo();
+
 #define GL_ROUTINE_HANDLER(name) Result * handle##name(GLHandler * pThis, Buffer * in)
 #define GL_ROUTINE_HANDLER_PAIR(name) make_pair("gl" #name, handle##name)
 
-GL_ROUTINE_HANDLER(XChooseVisual);
-GL_ROUTINE_HANDLER(XCreateContext);
-GL_ROUTINE_HANDLER(XMakeCurrent);
-GL_ROUTINE_HANDLER(XMakeContextCurrent);
-GL_ROUTINE_HANDLER(XQueryExtensionsString);
-GL_ROUTINE_HANDLER(XQueryExtension);
-GL_ROUTINE_HANDLER(GenLists);
-GL_ROUTINE_HANDLER(NewList);
-GL_ROUTINE_HANDLER(ShadeModel);
-GL_ROUTINE_HANDLER(Normal3f);
-GL_ROUTINE_HANDLER(Begin);
-GL_ROUTINE_HANDLER(Vertex3f);
-GL_ROUTINE_HANDLER(End);
-GL_ROUTINE_HANDLER(EndList);
-GL_ROUTINE_HANDLER(Viewport);
-GL_ROUTINE_HANDLER(MatrixMode);
-GL_ROUTINE_HANDLER(LoadIdentity);
-GL_ROUTINE_HANDLER(Frustum);
-GL_ROUTINE_HANDLER(Translatef);
-GL_ROUTINE_HANDLER(CallList);
-GL_ROUTINE_HANDLER(Clear);
-GL_ROUTINE_HANDLER(PopMatrix);
-GL_ROUTINE_HANDLER(PushMatrix);
-GL_ROUTINE_HANDLER(Rotatef);
-GL_ROUTINE_HANDLER(XSwapBuffers);
-GL_ROUTINE_HANDLER(Enable);
-GL_ROUTINE_HANDLER(Disable);
-GL_ROUTINE_HANDLER(Lightfv);
-GL_ROUTINE_HANDLER(Materialfv);
-GL_ROUTINE_HANDLER(Indexi);
-GL_ROUTINE_HANDLER(Color3f);
-GL_ROUTINE_HANDLER(Vertex2f);
-GL_ROUTINE_HANDLER(Vertex2i);
-GL_ROUTINE_HANDLER(Scalef);
-GL_ROUTINE_HANDLER(Flush);
-GL_ROUTINE_HANDLER(Ortho);
-GL_ROUTINE_HANDLER(CullFace);
-GL_ROUTINE_HANDLER(__ExecuteRoutines);
-GL_ROUTINE_HANDLER(__GetBuffer);
-GL_ROUTINE_HANDLER(__GetDispenser);
-
+#include "GLHandler_handlers.h"
 
 #endif	/* _CUDARTHANDLER_H */
 

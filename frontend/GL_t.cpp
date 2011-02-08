@@ -1,7 +1,7 @@
 /*
  * gVirtuS -- A GPGPU transparent virtualization component.
  *
- * Copyright (C) 2009-2010  The University of Napoli Parthenope at Naples.
+ * Copyright (C) 2009-2011  The University of Napoli Parthenope at Naples.
  *
  * This file is part of gVirtuS.
  *
@@ -23,10 +23,14 @@
  *             Department of Applied Science
  */
 
-#include "GLHandler.h"
+#include <GL/gl.h>
 
-#include "GLBackend.h"
+#include "GL.h"
 
-Handler *GLBackend::GetHandler() {
-    return (Handler *) new GLHandler();
+extern "C" void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
+    Buffer *in = AddRoutine("glTranslatef");
+    in->Add(x);
+    in->Add(y);
+    in->Add(z);
 }
+

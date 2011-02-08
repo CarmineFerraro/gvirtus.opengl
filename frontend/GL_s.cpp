@@ -1,7 +1,7 @@
 /*
  * gVirtuS -- A GPGPU transparent virtualization component.
  *
- * Copyright (C) 2009-2010  The University of Napoli Parthenope at Naples.
+ * Copyright (C) 2009-2011  The University of Napoli Parthenope at Naples.
  *
  * This file is part of gVirtuS.
  *
@@ -23,15 +23,18 @@
  *             Department of Applied Science
  */
 
-#ifndef GLBACKEND_H
-#define	GLBACKEND_H
+#include <GL/gl.h>
 
-#include "Backend.h"
+#include "GL.h"
 
-class GLBackend : public Backend {
-public:
-    Handler *GetHandler();
-};
+extern "C" void glScalef(GLfloat x, GLfloat y, GLfloat z) {
+    Buffer *in = AddRoutine("glScalef");
+    in->Add(x);
+    in->Add(y);
+    in->Add(z);
+}
 
-#endif	/* GLBACKEND_H */
-
+extern "C" void glShadeModel(GLenum mode) {
+    Buffer *in = AddRoutine("glShadeModel");
+    in->Add(mode);
+}
