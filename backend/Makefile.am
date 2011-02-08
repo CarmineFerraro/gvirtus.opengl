@@ -27,7 +27,10 @@ GLHandler.h: GLHandler_handlers.h
 GLHandler.cpp: GLHandler_handlerspair.h
 
 GLHandler_handlers.h: *.cpp
-	grep GL_ROUTINE_HANDLER\( *.cpp | sed 's|:| |' | awk '{ print $$2 ";"}' > GLHandler_handlers.h
+	grep GL_ROUTINE_HANDLER\( *.cpp | sed 's|:| |' | awk '{ print $$2 ";"}' > GLHandler_handlers.tmp
+	diff GLHandler_handlers.h GLHandler_handlers.tmp 2>&1 > /dev/null
+	if [ "$$?" != "0" ]; then cp GLHandler_handlers.tmp GLHandler_handlers.h; fi
+	rm -rf GLHandler_handlers.tmp
 
 GLHandler_handlerspair.h: GLHandler_handlers.h
 	sed -e 's|GL_ROUTINE_HANDLER||' -e 's|);||' GLHandler_handlers.h | awk '{ print "mspHandlers->insert(GL_ROUTINE_HANDLER_PAIR" $$1 "));" }' > GLHandler_handlerspair.h
