@@ -96,7 +96,6 @@ GL_ROUTINE_HANDLER(XMakeContextCurrent) {
 GL_ROUTINE_HANDLER(XMakeCurrent) {
     GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis);
     GLXContext ctx = (GLXContext) in->Get<uint64_t > ();
-    cout << "ctx: " << ctx << endl;
     /*bool use_shm = */ in->Get<bool>();
     Bool result = glXMakeCurrent(GetDisplay(), drawable, ctx);
     Buffer *out = new Buffer();
@@ -125,9 +124,9 @@ GL_ROUTINE_HANDLER(XQueryExtensionsString) {
 GL_ROUTINE_HANDLER(XSwapBuffers) {
     GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis);
     glXSwapBuffers(GetDisplay(), drawable);
-    pThis->Lock();
-    char *buffer = pThis->GetFramebuffer();
-    glReadPixels(0, 0, 512, 512, GL_BGRA, GL_UNSIGNED_BYTE, buffer);
-    pThis->Unlock();
+    if(pThis->RequestPending()) {
+        glReadPixels(0, 0, 512, 512, GL_BGRA, GL_UNSIGNED_BYTE, pThis->GetFramebuffer());
+        pThis->Updated();
+    }
     return new Result(0);
 }

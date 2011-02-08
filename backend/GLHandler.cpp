@@ -36,6 +36,8 @@
  *
  */
 
+#define GL_GLEXT_PROTOTYPES
+
 #include "GLHandler.h"
 
 #include <errno.h>
@@ -46,11 +48,15 @@
 #include "Result.h"
 
 #include <X11/Xlib.h>
+#include <GL/glext.h>
 #include <GL/glx.h>
+#include <semaphore.h>
 
 using namespace std;
 
 map<string, GLHandler::GLRoutineHandler> *GLHandler::mspHandlers = NULL;
+static map<GLXDrawable, GLXDrawable> msDrawables;
+static map<GLXDrawable, const char *> msDispensers;
 
 extern "C" int HandlerInit() {
     return 0;
@@ -64,6 +70,8 @@ GLHandler::GLHandler() {
     Initialize();
     mpFramebuffer = NULL;
     mpLock = NULL;
+    sem_init(&mProducer, 0, 0);
+    sem_init(&mConsumer, 0, 0);
 }
 
 GLHandler::~GLHandler() {
@@ -97,14 +105,13 @@ static void *FramebufferDispenser(void *args) {
     cout << "DISPENSER" << endl;
     GLHandler *pThis = ((DispenserArgs *) args)->mpHandler;
     Communicator *s = ((DispenserArgs *) args)->mpCommunicator;
-    try {
+   try {
         Communicator *c = const_cast<Communicator *> (s->Accept());
         char token;
         while (true) {
             c->Read(&token, 1);
-            pThis->Lock();
-            c->Write(pThis->GetFramebuffer(), 512 * 512 * sizeof (int));
-            pThis->Unlock();
+            pThis->RequestUpdate();
+            c->Write((const char *) pThis->GetFramebuffer(), 512 * 512 * sizeof (int));
             c->Sync();
         }
     } catch (const char *ex) {
@@ -196,9 +203,6 @@ XVisualInfo *GetVisualInfo() {
     return vi;
 }
 
-static map<GLXDrawable, GLXDrawable> msDrawables;
-static map<GLXDrawable, const char *> msDispensers;
-
 GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis) {
     map<GLXDrawable, GLXDrawable>::iterator i = msDrawables.find(handler);
     if (i != msDrawables.end())
@@ -210,7 +214,7 @@ GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis) {
     XMapWindow(GetDisplay(), drawable);
     msDrawables.insert(make_pair(handler, drawable));
     msDispensers.insert(make_pair(handler, pThis->InitFramebuffer(512 * 512
-            * sizeof(int), false)));
+            * sizeof (int), false)));
     return drawable;
 }
 
@@ -228,7 +232,7 @@ GL_ROUTINE_HANDLER(__GetBuffer) {
 }
 
 GL_ROUTINE_HANDLER(__GetDispenser) {
-    GLXDrawable drawable = in->Get<GLXDrawable>();
+    GLXDrawable drawable = in->Get<GLXDrawable > ();
     map<GLXDrawable, const char *>::iterator i = msDispensers.find(drawable);
     Buffer *out = new Buffer();
     out->AddString(i->second);

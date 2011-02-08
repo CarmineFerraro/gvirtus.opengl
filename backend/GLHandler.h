@@ -51,6 +51,8 @@
 #include <X11/Xlib.h>
 #include <GL/glx.h>
 
+#include <semaphore.h>
+
 /**						
  * CudaRtHandler is used by Backend's Process(es) for storing and retrieving
  * device related data and functions. 
@@ -74,7 +76,18 @@ public:
         if(mpLock)
             pthread_spin_unlock(mpLock);
     }
+    inline void RequestUpdate() {
+        sem_post(&mProducer);
+        sem_wait(&mConsumer);
+    }
+    inline bool RequestPending() {
+        return sem_trywait(&mProducer) == 0;
+    }
+    inline void Updated() {
+        sem_post(&mConsumer);
+    }
 private:
+    sem_t mProducer, mConsumer;
     void Initialize();
     typedef Result * (*GLRoutineHandler)(GLHandler *, Buffer *);
     static std::map<std::string, GLRoutineHandler> * mspHandlers;
