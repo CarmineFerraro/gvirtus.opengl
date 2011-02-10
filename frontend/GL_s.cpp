@@ -27,6 +27,10 @@
 
 #include "GL.h"
 
+#include <iostream>
+
+using namespace std;
+
 extern "C" void glScalef(GLfloat x, GLfloat y, GLfloat z) {
     Buffer *in = AddRoutine("glScalef");
     in->Add(x);
@@ -37,4 +41,13 @@ extern "C" void glScalef(GLfloat x, GLfloat y, GLfloat z) {
 extern "C" void glShadeModel(GLenum mode) {
     Buffer *in = AddRoutine("glShadeModel");
     in->Add(mode);
+}
+
+extern "C" void glShaderSource(GLuint shader, GLsizei count,
+        const GLchar **string,  const GLint *length) {
+    Buffer *in = AddRoutine("glShaderSource");
+    in->Add(shader);
+    in->Add(count);
+    for(int i = 0; i < count; i++)
+        in->AddString((const char *) (string[i]));
 }

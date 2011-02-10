@@ -23,7 +23,9 @@
  *             Department of Applied Science
  */
 
-#include "GL/gl.h"
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+#include <GL/glext.h>
 
 #include "GLHandler.h"
 
@@ -41,4 +43,15 @@ GL_ROUTINE_HANDLER(ShadeModel) {
     return new Result(0);
 }
 
-
+GL_ROUTINE_HANDLER(ShaderSource) {
+    GLuint shader = in->Get<GLuint>();
+    GLsizei count = in->Get<GLsizei>();
+    GLchar **string = new GLchar*[count];
+    GLint *length = new GLint[count];
+    for(int i = 0; i < count; i++) {
+        string[i] = (GLchar *) in->AssignString();
+        length[i] = strlen((char *) string[i]);
+    }
+    glShaderSource(shader, count, (const GLchar **) string, length);
+    return new Result(0);
+}
