@@ -49,6 +49,13 @@ GL_ROUTINE_HANDLER(BindTexture) {
     return new Result(0);
 }
 
+GL_ROUTINE_HANDLER(BlendFunc) {
+    GLenum sfactor = in->Get<GLenum>();
+    GLenum dfactor = in->Get<GLenum>();
+    glBlendFunc(sfactor, dfactor);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(BufferData) {
     GLenum target = in->Get<GLenum>();
     GLsizeiptr size = in->Get<GLsizeiptr>();
