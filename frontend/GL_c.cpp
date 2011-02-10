@@ -53,6 +53,10 @@ extern "C" void glColor3f(GLfloat red, GLfloat green, GLfloat blue) {
     in->Add(blue);
 }
 
+extern "C" void glColor3fv(const GLfloat *v) {
+    AddRoutine("glColor3fv")->Add(v, 3);
+}
+
 extern "C" void glColorPointer(GLint size, GLenum type, GLsizei stride, 
         const GLvoid *pointer) {
     Buffer *in = AddRoutine("glColorPointer");

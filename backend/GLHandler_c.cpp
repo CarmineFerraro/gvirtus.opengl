@@ -58,6 +58,12 @@ GL_ROUTINE_HANDLER(Color3f) {
     return new Result(0);
 }
 
+GL_ROUTINE_HANDLER(Color3fv) {
+    const GLfloat *v = in->AssignAll<GLfloat>();
+    glColor3fv(v);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(ColorPointer) {
     GLint size = in->Get<GLint>();
     GLenum type = in->Get<GLenum>();
