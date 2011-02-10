@@ -27,6 +27,12 @@
 
 #include "GLHandler.h"
 
+GL_ROUTINE_HANDLER(DepthMask) {
+    GLboolean flag = in->Get<GLboolean>();
+    glDepthMask(flag);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(DrawArrays) {
     GLenum mode = in->Get<GLenum>();
     GLint first = in->Get<GLint>();

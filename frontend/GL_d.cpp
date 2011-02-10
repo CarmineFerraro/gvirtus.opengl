@@ -27,6 +27,10 @@
 
 #include "GL.h"
 
+extern "C" void glDepthMask(GLboolean flag) {
+    AddRoutine("glDepthMash")->Add(flag);
+}
+
 extern "C" void glDrawArrays(GLenum mode, GLint	first, GLsizei count) {
     Buffer *in = AddRoutine("glDrawArrays");
     in->Add(mode);
