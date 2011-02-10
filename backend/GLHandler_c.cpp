@@ -58,17 +58,23 @@ GL_ROUTINE_HANDLER(Color3f) {
     return new Result(0);
 }
 
+GL_ROUTINE_HANDLER(CompileShader) {
+    GLuint shader = in->Get<GLuint>();
+    glCompileShader(shader);
+    return new Result(0);
+}
+
+GL_ROUTINE_HANDLER(CreateProgram) {
+    Buffer *out = new Buffer();
+    out->Add(glCreateProgram());
+    return new Result(0, out);
+}
+
 GL_ROUTINE_HANDLER(CreateShader) {
     GLenum shaderType = in->Get<GLenum>();
     Buffer *out = new Buffer();
     out->Add(glCreateShader(shaderType));
     return new Result(0, out);
-}
-
-GL_ROUTINE_HANDLER(glCompileShader) {
-    GLuint shader = in->Get<GLuint>();
-    glCompileShader(shader);
-    return new Result(0);
 }
 
 GL_ROUTINE_HANDLER(CullFace) {

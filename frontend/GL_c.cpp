@@ -58,6 +58,12 @@ extern "C" void glCompileShader(GLuint shader) {
     in->Add(shader);
 }
 
+extern "C" GLuint glCreateProgram() {
+    Frontend *f = GetFrontend();
+    f->Execute("glCreateProgram");
+    return f->GetOutputBuffer()->Get<GLuint>();
+}
+
 extern "C" GLuint glCreateShader(GLenum shaderType) {
     Frontend *f = GetFrontend();
     f->GetInputBuffer()->Add(shaderType);
