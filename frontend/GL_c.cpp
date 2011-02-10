@@ -53,6 +53,13 @@ extern "C" void glColor3f(GLfloat red, GLfloat green, GLfloat blue) {
     in->Add(blue);
 }
 
+extern "C" GLuint glCreateShader(GLenum shaderType) {
+    Frontend *f = GetFrontend();
+    f->GetInputBuffer()->Add(shaderType);
+    f->Execute("glCreateShader");
+    return f->GetOutputBuffer()->Get<GLuint>();
+}
+
 extern "C" void glCullFace(GLenum mode) {
     Buffer *in = AddRoutine("glCullFace");
     in->Add(mode);

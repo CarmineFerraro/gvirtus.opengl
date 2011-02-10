@@ -23,7 +23,9 @@
  *             Department of Applied Science
  */
 
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
+#include <GL/glext.h>
 
 #include "GLHandler.h"
 
@@ -54,6 +56,13 @@ GL_ROUTINE_HANDLER(Color3f) {
     GLfloat blue = in->Get<GLfloat>();
     glColor3f(red, green, blue);
     return new Result(0);
+}
+
+GL_ROUTINE_HANDLER(CreateShader) {
+    GLenum shaderType = in->Get<GLenum>();
+    Buffer *out = new Buffer();
+    out->Add(glCreateShader(shaderType));
+    return new Result(0, out);
 }
 
 GL_ROUTINE_HANDLER(CullFace) {
