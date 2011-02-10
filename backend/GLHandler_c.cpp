@@ -65,6 +65,12 @@ GL_ROUTINE_HANDLER(CreateShader) {
     return new Result(0, out);
 }
 
+GL_ROUTINE_HANDLER(glCompileShader) {
+    GLuint shader = in->Get<GLuint>();
+    glCompileShader(shader);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(CullFace) {
     GLenum mode = in->Get<GLenum > ();
     glCullFace(mode);
