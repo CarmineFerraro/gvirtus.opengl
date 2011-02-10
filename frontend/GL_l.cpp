@@ -53,6 +53,11 @@ extern "C" void glLightfv(GLenum light, GLenum pname, const GLfloat *params) {
     in->Add(params, n);
 }
 
+extern "C" void glLinkProgram(GLuint program) {
+    Buffer *in = AddRoutine("glLinkProgram");
+    in->Add(program);
+}
+
 extern "C" void glLoadIdentity(void) {
     AddRoutine("glLoadIdentity");
 }

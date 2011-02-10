@@ -23,7 +23,9 @@
  *             Department of Applied Science
  */
 
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
+#include <GL/glext.h>
 
 #include "GLHandler.h"
 
@@ -32,6 +34,12 @@ GL_ROUTINE_HANDLER(Lightfv) {
     GLenum pname = in->Get<GLenum > ();
     GLfloat *params = in->AssignAll<GLfloat > ();
     glLightfv(light, pname, params);
+    return new Result(0);
+}
+
+GL_ROUTINE_HANDLER(LinkProgram) {
+    GLuint program = in->Get<GLuint>();
+    glLinkProgram(program);
     return new Result(0);
 }
 
