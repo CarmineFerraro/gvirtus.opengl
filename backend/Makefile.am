@@ -28,8 +28,7 @@ GLHandler.cpp: GLHandler_handlerspair.h
 
 GLHandler_handlers.h: *.cpp
 	grep GL_ROUTINE_HANDLER\( *.cpp | sed 's|:| |' | awk '{ print $$2 ";"}' > GLHandler_handlers.tmp
-	diff GLHandler_handlers.h GLHandler_handlers.tmp 2>&1 > /dev/null
-	if [ "$$?" != "0" ]; then cp GLHandler_handlers.tmp GLHandler_handlers.h; fi
+	diff GLHandler_handlers.h GLHandler_handlers.tmp 2>&1 > /dev/null || cp GLHandler_handlers.tmp GLHandler_handlers.h
 	rm -rf GLHandler_handlers.tmp
 
 GLHandler_handlerspair.h: GLHandler_handlers.h
