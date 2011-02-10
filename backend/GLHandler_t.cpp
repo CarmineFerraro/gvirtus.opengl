@@ -27,6 +27,14 @@
 
 #include "GLHandler.h"
 
+GL_ROUTINE_HANDLER(TexEnvi) {
+    GLenum target = in->Get<GLenum>();
+    GLenum pname = in->Get<GLenum>();
+    GLint param = in->Get<GLint>();
+    glTexEnvi(target, pname, param);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(TexImage2D) {
     GLenum target = in->Get<GLenum>();
     GLint level = in->Get<GLint>();

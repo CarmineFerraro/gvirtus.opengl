@@ -27,7 +27,14 @@
 
 #include "GL.h"
 
-void glTexImage2D(GLenum target, GLint level, GLint internalFormat,
+extern "C" void glTexEnvi(GLenum target, GLenum pname, GLint param) {
+    Buffer *in = AddRoutine("glTexEnvi");
+    in->Add(target);
+    in->Add(pname);
+    in->Add(param);
+}
+
+extern "C" void glTexImage2D(GLenum target, GLint level, GLint internalFormat,
         GLsizei width, GLsizei height, GLint border, GLenum format,
         GLenum type, const GLvoid * data) {
     int components = 1;
