@@ -27,6 +27,12 @@
 
 #include "GLHandler.h"
 
+GL_ROUTINE_HANDLER(PointSize) {
+    GLfloat size = in->Get<GLfloat>();
+    glPointSize(size);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(PopMatrix) {
     glPopMatrix();
     return new Result(0);

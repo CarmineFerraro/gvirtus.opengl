@@ -27,6 +27,10 @@
 
 #include "GL.h"
 
+extern "C" void glPointSize(GLfloat size) {
+    AddRoutine("glPointSize")->Add(size);
+}
+
 extern "C" void glPopMatrix(void) {
     AddRoutine("glPopMatrix");
 }
