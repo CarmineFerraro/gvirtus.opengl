@@ -3,6 +3,7 @@ backendlib_LTLIBRARIES = libopengl-backend.la
 libopengl_backend_la_SOURCES = \
 GLHandler.cpp\
 GLHandler.h\
+GLHandler_a.cpp\
 GLHandler_b.cpp\
 GLHandler_c.cpp\
 GLHandler_d.cpp\

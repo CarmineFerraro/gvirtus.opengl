@@ -3,6 +3,7 @@ frontendlib_LTLIBRARIES = libGL.la
 libGL_la_SOURCES = \
 GL.cpp\
 GL.h\
+GL_a.cpp\
 GL_b.cpp\
 GL_c.cpp\
 GL_d.cpp\
