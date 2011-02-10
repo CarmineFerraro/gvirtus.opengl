@@ -23,9 +23,17 @@
  *             Department of Applied Science
  */
 
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
+#include <GL/glext.h>
 
 #include "GLHandler.h"
+
+GL_ROUTINE_HANDLER(DeleteShader) {
+    GLuint shader = in->Get<GLuint>();
+    glDeleteShader(shader);
+    return new Result(0);
+}
 
 GL_ROUTINE_HANDLER(DepthMask) {
     GLboolean flag = in->Get<GLboolean>();

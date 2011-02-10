@@ -27,6 +27,10 @@
 
 #include "GL.h"
 
+extern "C" void glDeleteShader(GLuint shader) {
+    AddRoutine("glDeleteShader")->Add(shader);
+}
+
 extern "C" void glDepthMask(GLboolean flag) {
     AddRoutine("glDepthMash")->Add(flag);
 }
