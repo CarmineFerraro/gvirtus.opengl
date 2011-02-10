@@ -27,6 +27,14 @@
 
 #include "GLHandler.h"
 
+GL_ROUTINE_HANDLER(TexParameteri) {
+    GLenum target = in->Get<GLenum>();
+    GLenum pname = in->Get<GLenum>();
+    GLint param = in->Get<GLint>();
+    glTexParameteri(target, pname, param);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(Translatef) {
     GLfloat x = in->Get<GLfloat > ();
     GLfloat y = in->Get<GLfloat > ();

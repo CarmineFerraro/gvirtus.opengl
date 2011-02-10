@@ -27,6 +27,13 @@
 
 #include "GL.h"
 
+extern "C" void glTexParameteri(GLenum target, GLenum pname, GLint param) {
+    Buffer *in = AddRoutine("glTexParameteri");
+    in->Add(target);
+    in->Add(pname);
+    in->Add(param);
+}
+
 extern "C" void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
     Buffer *in = AddRoutine("glTranslatef");
     in->Add(x);
