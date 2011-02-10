@@ -71,6 +71,16 @@ GL_ROUTINE_HANDLER(GetError) {
     return new Result(0, out);
 }
 
+GL_ROUTINE_HANDLER(GetProgramiv) {
+    GLenum program = in->Get<GLenum>();
+    GLenum pname = in->Get<GLenum>();
+    GLint params;
+    glGetProgramiv(program, pname, &params);
+    Buffer *out = new Buffer();
+    out->Add(params);
+    return new Result(0, out);
+}
+
 GL_ROUTINE_HANDLER(GetShaderiv) {
     GLenum shader = in->Get<GLenum>();
     GLenum pname = in->Get<GLenum>();
