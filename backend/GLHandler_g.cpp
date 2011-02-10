@@ -46,6 +46,16 @@ GL_ROUTINE_HANDLER(GenLists) {
     return new Result(0, out);
 }
 
+GL_ROUTINE_HANDLER(GetBufferParameteriv) {
+    GLenum target = in->Get<GLenum>();
+    GLenum value = in->Get<GLenum>();
+    GLint data;
+    glGetBufferParameteriv(target, value, &data);
+    Buffer *out = new Buffer();
+    out->Add(data);
+    return new Result(0, out);
+}
+
 GL_ROUTINE_HANDLER(GetError) {
     Buffer *out = new Buffer();
     out->Add(glGetError());

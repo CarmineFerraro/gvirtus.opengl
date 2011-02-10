@@ -45,6 +45,16 @@ extern "C" GLuint glGenLists(GLsizei range) {
     return result;
 }
 
+extern "C" void glGetBufferParameteriv(GLenum target, GLenum value,
+        GLint *data) {
+    Frontend *f = GetFrontend();
+    Buffer *in = f->GetInputBuffer();
+    in->Add(target);
+    in->Add(value);
+    f->Execute("glGetBufferParameteriv");
+    *data = f->GetOutputBuffer()->Get<GLuint > ();
+}
+
 extern "C" GLenum glGetError(void) {
     Frontend *f = GetFrontend();
     f->Execute("glGetError");
