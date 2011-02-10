@@ -58,3 +58,12 @@ extern "C" void glBufferData(GLenum target, GLsizeiptr size,
         in->Add((char *) data, size);
     in->Add(usage);
 }
+
+extern "C" void glBufferSubData(GLenum target, GLintptr offset, 
+        GLsizeiptr size, const GLvoid *data) {
+    Buffer *in = AddRoutine("glBufferSubData");
+    in->Add(target);
+    in->Add(offset);
+    in->Add(size);
+    in->Add((char *) data, size);
+}

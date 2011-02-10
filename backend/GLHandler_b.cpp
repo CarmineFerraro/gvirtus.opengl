@@ -61,3 +61,12 @@ GL_ROUTINE_HANDLER(BufferData) {
     glBufferData(target, size, data, usage);
     return new Result(0);
 }
+
+GL_ROUTINE_HANDLER(BufferSubData) {
+    GLenum target = in->Get<GLenum>();
+    GLintptr offset = in->Get<GLintptr>();
+    GLsizeiptr size = in->Get<GLsizeiptr>();
+    GLvoid * data = (GLvoid *) in->AssignAll<char *>();
+    glBufferSubData(target, offset, size, data);
+    return new Result(0);
+}
