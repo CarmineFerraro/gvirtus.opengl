@@ -137,6 +137,7 @@ extern "C" Bool glXMakeContextCurrent(Display * display, GLXDrawable draw,
         GLXDrawable read, GLXContext ctx) {
     Frontend *f = GetFrontend();
     Buffer *in = f->GetInputBuffer();
+    in->Add(true);
     in->Add(draw);
     in->Add(read);
     in->Add((uint64_t) ctx);
@@ -198,8 +199,6 @@ extern "C" Bool glXQueryVersion(Display *dpy, int *major, int *minor) {
     in->Add(major);
     in->Add(minor);
     f->Execute("glXQueryVersion");
-    if(f->GetExitCode() != True)
-        return False;
     *major = f->GetOutputBuffer()->Get<int>();
     *minor = f->GetOutputBuffer()->Get<int>();
     return True;

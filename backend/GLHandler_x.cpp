@@ -84,8 +84,9 @@ GL_ROUTINE_HANDLER(XGetClientString) {
 }
 
 GL_ROUTINE_HANDLER(XMakeContextCurrent) {
-    GLXDrawable draw = GetDrawable(in->Get<GLXDrawable > (), pThis);
-    GLXDrawable read = GetDrawable(in->Get<GLXDrawable > (), pThis);
+    bool use_shm = in->Get<bool>();
+    GLXDrawable draw = GetDrawable(in->Get<GLXDrawable > (), pThis, use_shm);
+    GLXDrawable read = GetDrawable(in->Get<GLXDrawable > (), pThis, use_shm);
     GLXContext ctx = (GLXContext) in->Get<uint64_t > ();
     Bool result = glXMakeContextCurrent(GetDisplay(), draw, read, ctx);
     Buffer *out = new Buffer();
@@ -94,9 +95,9 @@ GL_ROUTINE_HANDLER(XMakeContextCurrent) {
 }
 
 GL_ROUTINE_HANDLER(XMakeCurrent) {
-    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis);
+    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis, true);
     GLXContext ctx = (GLXContext) in->Get<uint64_t > ();
-    /*bool use_shm = */ in->Get<bool>();
+    /*bool use_shm =*/ in->Get<bool>();
     Bool result = glXMakeCurrent(GetDisplay(), drawable, ctx);
     Buffer *out = new Buffer();
     out->Add(result);
@@ -121,12 +122,23 @@ GL_ROUTINE_HANDLER(XQueryExtensionsString) {
     return new Result(0, out);
 }
 
+GL_ROUTINE_HANDLER(XQueryVersion) {
+    Display *dpy = GetDisplay();
+    int major;
+    int minor;
+    glXQueryVersion(dpy, &major, &minor);
+    Buffer *out = new Buffer();
+    out->Add(major);
+    out->Add(minor);
+    return new Result(0, out);
+}
+
 GL_ROUTINE_HANDLER(XSwapBuffers) {
-    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis);
+    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable>(), pThis, true);
     glXSwapBuffers(GetDisplay(), drawable);
-    if(pThis->RequestPending()) {
+    //if(pThis->RequestPending()) {
         glReadPixels(0, 0, 512, 512, GL_BGRA, GL_UNSIGNED_BYTE, pThis->GetFramebuffer());
-        pThis->Updated();
-    }
+    //    pThis->Updated();
+    //}
     return new Result(0);
 }
