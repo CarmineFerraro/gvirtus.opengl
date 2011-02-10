@@ -54,7 +54,7 @@ GL_ROUTINE_HANDLER(BufferData) {
     GLsizeiptr size = in->Get<GLsizeiptr>();
     GLvoid * data;
     if(in->Get<bool>())
-        data = in->AssignAll<GLvoid *>();
+        data = (GLvoid *) in->AssignAll<char *>();
     else
         data = NULL;
     GLenum usage = in->Get<GLenum>();
