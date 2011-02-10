@@ -27,6 +27,21 @@
 
 #include "GLHandler.h"
 
+GL_ROUTINE_HANDLER(TexImage2D) {
+    GLenum target = in->Get<GLenum>();
+    GLint level = in->Get<GLint>();
+    GLint internalFormat = in->Get<GLint>();
+    GLsizei width = in->Get<GLsizei>(); 
+    GLsizei height = in->Get<GLsizei>();
+    GLint border = in->Get<GLint>(); 
+    GLenum format = in->Get<GLenum>();
+    GLenum type = in->Get<GLenum>();
+    GLvoid * data = (GLvoid *) in->AssignAll<char>();
+    glTexImage2D(target, level, internalFormat, width, height, border, format,
+            type, data);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(TexParameteri) {
     GLenum target = in->Get<GLenum>();
     GLenum pname = in->Get<GLenum>();
