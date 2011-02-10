@@ -58,6 +58,15 @@ GL_ROUTINE_HANDLER(Color3f) {
     return new Result(0);
 }
 
+GL_ROUTINE_HANDLER(ColorPointer) {
+    GLint size = in->Get<GLint>();
+    GLenum type = in->Get<GLenum>();
+    GLsizei stride = in->Get<GLsizei>();
+    const GLvoid *pointer = NULL;
+    glColorPointer(size, type, stride, pointer);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(CompileShader) {
     GLuint shader = in->Get<GLuint>();
     glCompileShader(shader);
