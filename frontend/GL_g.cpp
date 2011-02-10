@@ -70,6 +70,15 @@ extern "C" GLenum glGetError(void) {
     return f->GetOutputBuffer()->Get<GLenum>();
 }
 
+extern "C" void glGetShaderiv(GLuint shader, GLenum pname,  GLint *params) {
+    Frontend *f = GetFrontend();
+    Buffer *in = f->GetInputBuffer();
+    in->Add(shader);
+    in->Add(pname);
+    f->Execute("glGetShaderiv");
+    *params = f->GetOutputBuffer()->Get<GLuint > ();
+}
+
 extern "C" const GLubyte* glGetString(GLenum name) {
     Frontend *f = GetFrontend();
     Buffer *in = f->GetInputBuffer();
