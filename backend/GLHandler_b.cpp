@@ -42,6 +42,13 @@ GL_ROUTINE_HANDLER(BindBuffer) {
     return new Result(0);
 }
 
+GL_ROUTINE_HANDLER(BindTexture) {
+    GLenum target = in->Get<GLenum>();
+    GLuint texture = in->Get<GLuint>();
+    glBindTexture(target, texture);
+    return new Result(0);
+}
+
 GL_ROUTINE_HANDLER(BufferData) {
     GLenum target = in->Get<GLenum>();
     GLsizeiptr size = in->Get<GLsizeiptr>();

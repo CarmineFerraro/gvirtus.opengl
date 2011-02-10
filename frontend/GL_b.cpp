@@ -42,6 +42,12 @@ extern "C" void glBindBuffer(GLenum target, GLuint buffer) {
     in->Add(buffer);
 }
 
+extern "C" void glBindTexture(GLenum target, GLuint texture) {
+    Buffer *in = AddRoutine("glBindTexture");
+    in->Add(target);
+    in->Add(texture);
+}
+
 extern "C" void glBufferData(GLenum target, GLsizeiptr size,
         const GLvoid * data, GLenum usage) {
     Buffer *in = AddRoutine("glBufferData");
