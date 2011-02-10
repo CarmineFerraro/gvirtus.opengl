@@ -45,6 +45,15 @@ extern "C" GLuint glGenLists(GLsizei range) {
     return result;
 }
 
+extern "C" void glGenTextures(GLsizei n, GLuint *textures) {
+    Frontend *f = GetFrontend();
+    Buffer *in = f->GetInputBuffer();
+    in->Add(n);
+    in->Add(textures, n);
+    f->Execute("glGenTextures");
+    memmove(textures, f->GetOutputBuffer()->AssignAll<char>(), n * sizeof(GLuint));
+}
+
 extern "C" void glGetBufferParameteriv(GLenum target, GLenum value,
         GLint *data) {
     Frontend *f = GetFrontend();
