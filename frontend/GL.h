@@ -32,7 +32,8 @@
 
 Frontend *GetFrontend();
 Buffer *AddRoutine(const char *routine);
-void InstantiateUpdater(Display *dpy, GLXDrawable drawable);
+void InstantiateUpdater(Display *dpy, GLXDrawable drawable,
+        XWindowAttributes attrib);
 
 #endif	/* GL_H */
 

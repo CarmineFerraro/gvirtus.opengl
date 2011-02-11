@@ -56,6 +56,7 @@ using namespace std;
 
 map<string, GLHandler::GLRoutineHandler> *GLHandler::mspHandlers = NULL;
 static map<GLXDrawable, GLXDrawable> msDrawables;
+static map<GLXDrawable, XWindowAttributes> msAttributes;
 static map<GLXDrawable, const char *> msDispensers;
 
 extern "C" int HandlerInit() {
@@ -99,19 +100,21 @@ Result * GLHandler::Execute(std::string routine, Buffer * input_buffer) {
 struct DispenserArgs {
     GLHandler *mpHandler;
     Communicator *mpCommunicator;
+    int mSize;
 };
 
 static void *FramebufferDispenser(void *args) {
     cout << "DISPENSER" << endl;
     GLHandler *pThis = ((DispenserArgs *) args)->mpHandler;
     Communicator *s = ((DispenserArgs *) args)->mpCommunicator;
-   try {
+    int size = ((DispenserArgs *) args)->mSize;
+    try {
         Communicator *c = const_cast<Communicator *> (s->Accept());
         char token;
         while (true) {
             c->Read(&token, 1);
             pThis->RequestUpdate();
-            c->Write((const char *) pThis->GetFramebuffer(), 512 * 512 * sizeof (int));
+            c->Write((const char *) pThis->GetFramebuffer(), size);
             c->Sync();
         }
     } catch (const char *ex) {
@@ -140,6 +143,7 @@ const char *GLHandler::InitFramebuffer(size_t size, bool use_shm) {
         da->mpHandler = this;
         da->mpCommunicator = Communicator::Get(communicator);
         da->mpCommunicator->Serve();
+        da->mSize = size;
         pthread_t tid;
         pthread_create(&tid, NULL, FramebufferDispenser, da);
         //FramebufferDispenser(this);
@@ -203,19 +207,32 @@ XVisualInfo *GetVisualInfo() {
     return vi;
 }
 
+GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis, bool use_shm,
+        XWindowAttributes &attrib) {
+    map<GLXDrawable, GLXDrawable>::iterator i = msDrawables.find(handler);
+    if (i != msDrawables.end()) {
+        XWindowAttributes tmp = msAttributes.find(handler)->second;
+        attrib.width = tmp.width;
+        attrib.height = tmp.height;
+        return i->second;
+    }
+    cout << "Creating new Window with handler: " << handler << endl;
+    GLXDrawable drawable = XCreateSimpleWindow(GetDisplay(),
+            XRootWindow(GetDisplay(), DefaultScreen(GetDisplay())), 0, 0,
+            attrib.width, attrib.height, 0, 0, 0);
+    XMapWindow(GetDisplay(), drawable);
+    msDrawables.insert(make_pair(handler, drawable));
+    msDispensers.insert(make_pair(handler, pThis->InitFramebuffer(attrib.width
+            * attrib.height * sizeof (int), use_shm)));
+    msAttributes.insert(make_pair(handler, attrib));
+    return drawable;
+}
+
 GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis, bool use_shm) {
     map<GLXDrawable, GLXDrawable>::iterator i = msDrawables.find(handler);
     if (i != msDrawables.end())
         return i->second;
-    cout << "Creating new Window with handler: " << handler << endl;
-    GLXDrawable drawable = XCreateSimpleWindow(GetDisplay(),
-            XRootWindow(GetDisplay(), DefaultScreen(GetDisplay())), 0, 0, 512,
-            512, 0, 0, 0);
-    XMapWindow(GetDisplay(), drawable);
-    msDrawables.insert(make_pair(handler, drawable));
-    msDispensers.insert(make_pair(handler, pThis->InitFramebuffer(512 * 512
-            * sizeof (int), use_shm)));
-    return drawable;
+    throw "Drawable not found!";
 }
 
 GL_ROUTINE_HANDLER(__ExecuteRoutines) {

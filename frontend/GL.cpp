@@ -112,24 +112,24 @@ struct WindowInfo {
     int mHeight;
 };
 
-static void InitFramebuffer() {
+static void InitFramebuffer(WindowInfo *w) {
     int fd;
     cout << "InitFramebuffer: " << mShmType << endl;
     if (mShmType == NONE) {
-        mspFramebuffer = new char[512 * 512 * sizeof (int) ];
+        mspFramebuffer = new char[w->mWidth * w->mHeight * sizeof (int) ];
         mspLock = NULL;
         mspDispenserCommunicator = new TcpCommunicator(mspShmName);
         mspDispenserCommunicator->Connect();
         return;
     } else if (mShmType == POSIX) {
         fd = shm_open(mspShmName, O_RDWR, S_IRUSR | S_IWUSR);
-        if (ftruncate(fd, 512 * 512 * sizeof (int) + sizeof(pthread_spinlock_t)));
+        if (ftruncate(fd, w->mWidth * w->mHeight * sizeof (int) + sizeof (pthread_spinlock_t)));
     } else {
         fd = open("/dev/vmshm0", O_RDWR);
         ioctl(fd, 0, mspShmName);
     }
     mspLock = reinterpret_cast<pthread_spinlock_t *> (mmap(NULL,
-            512 * 512 * sizeof (int) + sizeof(pthread_spinlock_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+            w->mWidth * w->mHeight * sizeof (int) + sizeof (pthread_spinlock_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
             0));
     mspFramebuffer = ((char *) mspLock) + sizeof (pthread_spinlock_t);
 }
@@ -144,45 +144,28 @@ static void Unlock() {
         pthread_spin_unlock(mspLock);
 }
 
-static inline char *GetFramebuffer() {
+static inline char *GetFramebuffer(WindowInfo *w) {
     if (mShmType != NONE)
         return mspFramebuffer;
-#if 0
-    Frontend *f = Frontend::GetFrontend();
-    f->Prepare();
-    f->Execute("gl__GetBuffer");
-    memmove(mspFramebuffer, f->GetOutputBuffer()->GetBuffer(),
-            300 * 300 * sizeof (int));
-#endif
     char token = 0;
     mspDispenserCommunicator->Write(&token, 1);
     mspDispenserCommunicator->Sync();
-    mspDispenserCommunicator->Read(mspFramebuffer, 512 * 512 * sizeof (int));
+    mspDispenserCommunicator->Read(mspFramebuffer, w->mWidth * w->mHeight * sizeof (int));
     return mspFramebuffer;
 }
 
 static void *update(void *__w) {
     WindowInfo *w = (WindowInfo *) __w;
-    InitFramebuffer();
+    InitFramebuffer(w);
     char *buffer;
-        buffer = GetFramebuffer();
-        XImage *img = XCreateImage(w->mpDpy, CopyFromParent,
-                24, ZPixmap, 0, buffer, w->mWidth, w->mHeight, 32,
-                w->mWidth * 4);
+    buffer = GetFramebuffer(w);
+    XImage *img = XCreateImage(w->mpDpy, CopyFromParent,
+            24, ZPixmap, 0, buffer, w->mWidth, w->mHeight, 32,
+            w->mWidth * 4);
     while (true) {
-#if 0
-        for (int i = 0; i < 300 / 2; i++) {
-            memmove(row, buffer + (299 - i) * 300 * sizeof (int), 300 * sizeof (int));
-            memmove(buffer + (299 - i) * 300 * sizeof (int), buffer + i * 300 * sizeof (int), 300 * sizeof (int));
-            memmove(buffer + i * 300 * sizeof (int), row, 300 * sizeof (int));
-        }
-        XImage *img = XCreateImage(w->mpDpy, CopyFromParent,
-                24, ZPixmap, 0, buffer, w->mWidth, w->mHeight, 32,
-                w->mWidth * 4);
-#endif
         Lock();
-        buffer = GetFramebuffer();
-        memmove(img->data, buffer, w->mWidth * w->mHeight * sizeof(int));
+        buffer = GetFramebuffer(w);
+        memmove(img->data, buffer, w->mWidth * w->mHeight * sizeof (int));
         img->bits_per_pixel = 32;
         XPutImage(w->mpDpy, w->mDrawable, DefaultGC(w->mpDpy, 0), img, 0, 0, 0,
                 0, w->mWidth, w->mHeight);
@@ -194,7 +177,8 @@ static void *update(void *__w) {
 
 map<GLXDrawable, pthread_t> msUpdaters;
 
-void InstantiateUpdater(Display *dpy, GLXDrawable drawable) {
+void InstantiateUpdater(Display *dpy, GLXDrawable drawable,
+        XWindowAttributes attrib) {
     map<GLXDrawable, pthread_t>::iterator i = msUpdaters.find(drawable);
     if (i != msUpdaters.end())
         return;
@@ -207,8 +191,8 @@ void InstantiateUpdater(Display *dpy, GLXDrawable drawable) {
     WindowInfo *w = new WindowInfo;
     w->mDrawable = drawable;
     w->mpDpy = dpy;
-    w->mWidth = 512;
-    w->mHeight = 512;
+    w->mWidth = attrib.width;
+    w->mHeight = attrib.height;
     pthread_t tid;
     pthread_create(&tid, NULL, update, w);
     msUpdaters.insert(make_pair(drawable, tid));

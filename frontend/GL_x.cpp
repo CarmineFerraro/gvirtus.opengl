@@ -139,13 +139,19 @@ extern "C" Bool glXMakeContextCurrent(Display * display, GLXDrawable draw,
     Buffer *in = f->GetInputBuffer();
     in->Add(true);
     in->Add(draw);
+    XWindowAttributes draw_attrib;
+    XGetWindowAttributes(display, draw, &draw_attrib);
+    in->Add(draw_attrib);
     in->Add(read);
+    XWindowAttributes read_attrib;
+    XGetWindowAttributes(display, read, &read_attrib);
+    in->Add(read_attrib);
     in->Add((uint64_t) ctx);
     f->Execute("glXMakeContextCurrent");
     Buffer *out = f->GetOutputBuffer();
     Bool result = out->Get<Bool > ();
-    InstantiateUpdater(display, draw);
-    InstantiateUpdater(display, read);
+    InstantiateUpdater(display, draw, draw_attrib);
+    InstantiateUpdater(display, read, read_attrib);
     return result;
 }
 
@@ -153,8 +159,10 @@ extern "C" Bool glXMakeCurrent(Display *dpy, GLXDrawable drawable,
         GLXContext ctx) {
     Frontend *f = GetFrontend();
     Buffer *in = f->GetInputBuffer();
-    //in->AddString(XDisplayString(dpy));
     in->Add(drawable);
+    XWindowAttributes attrib;
+    XGetWindowAttributes(dpy, drawable, &attrib);
+    in->Add(attrib);
     in->Add((uint64_t) ctx);
     //bool use_shm = mShmType != NONE;
     in->Add(false);
@@ -164,7 +172,7 @@ extern "C" Bool glXMakeCurrent(Display *dpy, GLXDrawable drawable,
     //mspShmName = strdup(out->AssignString());
     //pthread_t tid;
     //pthread_create(&tid, NULL, update, w);
-    InstantiateUpdater(dpy, drawable);
+    InstantiateUpdater(dpy, drawable, attrib);
     return result;
 }
 
