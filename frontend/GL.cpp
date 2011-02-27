@@ -117,21 +117,20 @@ static void InitFramebuffer(WindowInfo *w) {
     cout << "InitFramebuffer: " << mShmType << endl;
     if (mShmType == NONE) {
         mspFramebuffer = new char[w->mWidth * w->mHeight * sizeof (int) ];
-        mspLock = NULL;
-        mspDispenserCommunicator = new TcpCommunicator(mspShmName);
-        mspDispenserCommunicator->Connect();
-        return;
-    } else if (mShmType == POSIX) {
-        fd = shm_open(mspShmName, O_RDWR, S_IRUSR | S_IWUSR);
-        if (ftruncate(fd, w->mWidth * w->mHeight * sizeof (int) + sizeof (pthread_spinlock_t)));
-    } else {
-        fd = open("/dev/vmshm0", O_RDWR);
-        ioctl(fd, 0, mspShmName);
+    } else { 
+        if (mShmType == POSIX) {
+            fd = shm_open("/gvirtus", O_RDWR, S_IRUSR | S_IWUSR);
+            if (ftruncate(fd, w->mWidth * w->mHeight * sizeof (int)));
+        } else {
+            fd = open("/dev/vmshm0", O_RDWR);
+            ioctl(fd, 0, "/gvirtus");
+        }
+        mspFramebuffer = reinterpret_cast<char *> (mmap(NULL,
+            w->mWidth * w->mHeight * sizeof (int) , PROT_READ | PROT_WRITE, 
+            MAP_SHARED, fd, 0));
     }
-    mspLock = reinterpret_cast<pthread_spinlock_t *> (mmap(NULL,
-            w->mWidth * w->mHeight * sizeof (int) + sizeof (pthread_spinlock_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-            0));
-    mspFramebuffer = ((char *) mspLock) + sizeof (pthread_spinlock_t);
+    mspDispenserCommunicator = new TcpCommunicator(mspShmName);
+    mspDispenserCommunicator->Connect();
 }
 
 static void Lock() {
@@ -145,12 +144,15 @@ static void Unlock() {
 }
 
 static inline char *GetFramebuffer(WindowInfo *w) {
-    if (mShmType != NONE)
-        return mspFramebuffer;
+    //if (mShmType != NONE)
+    //    return mspFramebuffer;
     char token = 0;
     mspDispenserCommunicator->Write(&token, 1);
     mspDispenserCommunicator->Sync();
-    mspDispenserCommunicator->Read(mspFramebuffer, w->mWidth * w->mHeight * sizeof (int));
+    if (mShmType != NONE)
+        mspDispenserCommunicator->Read(&token, 1);
+    else
+        mspDispenserCommunicator->Read(mspFramebuffer, w->mWidth * w->mHeight * sizeof (int));
     return mspFramebuffer;
 }
 
@@ -164,13 +166,12 @@ static void *update(void *__w) {
             w->mWidth * 4);
     while (true) {
         Lock();
-        buffer = GetFramebuffer(w);
-        memmove(img->data, buffer, w->mWidth * w->mHeight * sizeof (int));
+        img->data = GetFramebuffer(w);
+        //memmove(img->data, buffer, w->mWidth * w->mHeight * sizeof (int));
         img->bits_per_pixel = 32;
         XPutImage(w->mpDpy, w->mDrawable, DefaultGC(w->mpDpy, 0), img, 0, 0, 0,
                 0, w->mWidth, w->mHeight);
         Unlock();
-        usleep(1000);
     }
     return NULL;
 }

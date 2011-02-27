@@ -48,6 +48,8 @@
 #include "Result.h"
 
 #include <X11/Xlib.h>
+#include <X11/extensions/Xcomposite.h>
+#include <X11/extensions/Xrender.h>
 #include <GL/glext.h>
 #include <GL/glx.h>
 #include <semaphore.h>
@@ -60,6 +62,7 @@ static map<GLXDrawable, XWindowAttributes> msAttributes;
 static map<GLXDrawable, const char *> msDispensers;
 
 extern "C" int HandlerInit() {
+    XInitThreads();
     return 0;
 }
 
@@ -101,20 +104,37 @@ struct DispenserArgs {
     GLHandler *mpHandler;
     Communicator *mpCommunicator;
     int mSize;
+    int mWidth;
+    int mHeight;
+    Display *mpDpy;
+    GLXDrawable mDrawable;
+    Picture mSrc;
+    Picture mDst;
+    Pixmap mPixmap;
+    XImage *mpImage;
+    bool mUseShm;
 };
 
-static void *FramebufferDispenser(void *args) {
+static void *FramebufferDispenser(void *_args) {
     cout << "DISPENSER" << endl;
-    GLHandler *pThis = ((DispenserArgs *) args)->mpHandler;
-    Communicator *s = ((DispenserArgs *) args)->mpCommunicator;
-    int size = ((DispenserArgs *) args)->mSize;
+    Communicator *s = ((DispenserArgs *) _args)->mpCommunicator;
+    int size = ((DispenserArgs *) _args)->mSize;
+    DispenserArgs *args = (DispenserArgs *) _args;
     try {
         Communicator *c = const_cast<Communicator *> (s->Accept());
         char token;
         while (true) {
             c->Read(&token, 1);
-            pThis->RequestUpdate();
-            c->Write((const char *) pThis->GetFramebuffer(), size);
+            args->mpHandler->RequestUpdate();
+            XRenderComposite(args->mpDpy, PictOpSrc, args->mSrc, None,
+                    args->mDst, 0, 0, 0, 0, 0, 0, args->mWidth, args->mHeight);
+            args->mpImage = XGetSubImage(args->mpDpy, args->mPixmap, 0, 0,
+                    args->mWidth, args->mHeight, XAllPlanes(), ZPixmap,
+                    args->mpImage, 0, 0);
+            if (!args->mUseShm)
+                c->Write((const char *) args->mpImage->data, size);
+            else
+                c->Write((const char *) &token, 1);
             c->Sync();
         }
     } catch (const char *ex) {
@@ -125,46 +145,53 @@ static void *FramebufferDispenser(void *args) {
     return NULL;
 }
 
-const char *GLHandler::InitFramebuffer(size_t size, bool use_shm) {
+const char *GLHandler::InitFramebuffer(size_t size, bool use_shm, GLXDrawable d) {
+    use_shm = true;
     static bool initialized = false;
     static char *communicator = NULL;
     if (initialized)
         return communicator;
     initialized = true;
     cout << "InitFramebuffer. Use SHM: " << use_shm << ". Size: " << size << endl;
-
-    if (!use_shm) {
-        const char *comm = "tcp://10.0.2.2:4444";
-        communicator = (char *) comm;
-        mpFramebuffer = new char[size];
-        memset(mpFramebuffer, 0, size);
-        cout << (void *) mpFramebuffer << endl;
-        DispenserArgs *da = new DispenserArgs;
-        da->mpHandler = this;
-        da->mpCommunicator = Communicator::Get(communicator);
-        da->mpCommunicator->Serve();
-        da->mSize = size;
-        pthread_t tid;
-        pthread_create(&tid, NULL, FramebufferDispenser, da);
-        //FramebufferDispenser(this);
-        return communicator;
-    }
-    char *name = new char[1024];
-    snprintf(name, 1024, "/gvirtus-%d", getpid());
-    shm_unlink(name);
-
-    size += sizeof (pthread_spinlock_t);
-    int fd = shm_open(name, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
-    if (ftruncate(fd, size) == -1);
-
-    mpLock = reinterpret_cast<pthread_spinlock_t *> (mmap(NULL, size,
+    const char *comm = "tcp://10.0.2.2:4444";
+    communicator = (char *) comm;
+    DispenserArgs *da = new DispenserArgs;
+    da->mpHandler = this;
+    da->mpCommunicator = Communicator::Get(communicator);
+    da->mpCommunicator->Serve();
+    da->mSize = size;
+    da->mpDpy = GetDisplay();
+    da->mDrawable = d;
+    XCompositeRedirectWindow(da->mpDpy, d, CompositeRedirectAutomatic);
+    XWindowAttributes attrib;
+    XGetWindowAttributes(da->mpDpy, d, &attrib);
+    da->mWidth = attrib.width;
+    da->mHeight = attrib.height;
+    XRenderPictFormat *format = XRenderFindVisualFormat(da->mpDpy,
+            attrib.visual);
+    XRenderPictureAttributes pa;
+    pa.subwindow_mode = IncludeInferiors;
+    da->mSrc = XRenderCreatePicture(da->mpDpy, d, format, CPSubwindowMode,
+            &pa);
+    da->mpImage = XGetImage(da->mpDpy, d, 0, 0, attrib.width,
+            attrib.height, XAllPlanes(), ZPixmap);
+    da->mUseShm = use_shm;
+    if(use_shm) {
+        shm_unlink("/gvirtus");
+        int fd = shm_open("/gvirtus", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+        if (ftruncate(fd, size) == -1)
+            throw "Cannot allocate shared memory.";
+        da->mpImage->data = reinterpret_cast<char *> (mmap(NULL, size,
             PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+    }
+    da->mPixmap = XCreatePixmap(da->mpDpy, d, da->mWidth, da->mHeight,
+            da->mpImage->depth);
+    da->mDst = XRenderCreatePicture(da->mpDpy, da->mPixmap, format,
+            CPSubwindowMode, &pa);
 
-    mpFramebuffer = ((char *) mpLock) + sizeof (pthread_spinlock_t);
-
-    pthread_spin_init(mpLock, PTHREAD_PROCESS_SHARED);
-    communicator = name;
-    return name;
+    pthread_t tid;
+    pthread_create(&tid, NULL, FramebufferDispenser, da);
+    return communicator;
 }
 
 char *GLHandler::GetFramebuffer() {
@@ -223,7 +250,7 @@ GLXDrawable GetDrawable(GLXDrawable handler, GLHandler *pThis, bool use_shm,
     XMapWindow(GetDisplay(), drawable);
     msDrawables.insert(make_pair(handler, drawable));
     msDispensers.insert(make_pair(handler, pThis->InitFramebuffer(attrib.width
-            * attrib.height * sizeof (int), use_shm)));
+            * attrib.height * sizeof (int), use_shm, drawable)));
     msAttributes.insert(make_pair(handler, attrib));
     return drawable;
 }

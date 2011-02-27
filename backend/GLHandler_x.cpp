@@ -23,6 +23,9 @@
  *             Department of Applied Science
  */
 
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+#include <GL/glext.h>
 #include <GL/glx.h>
 
 #include "GLHandler.h"
@@ -101,7 +104,7 @@ GL_ROUTINE_HANDLER(XMakeContextCurrent) {
 GL_ROUTINE_HANDLER(XMakeCurrent) {
     GLXDrawable drawable = in->Get<GLXDrawable > ();
     XWindowAttributes attrib = in->Get<XWindowAttributes > ();
-    drawable = GetDrawable(drawable, pThis, true, attrib);
+    drawable = GetDrawable(drawable, pThis, false, attrib);
     GLXContext ctx = (GLXContext) in->Get<uint64_t > ();
     /*bool use_shm =*/ in->Get<bool>();
     Bool result = glXMakeCurrent(GetDisplay(), drawable, ctx);
@@ -139,15 +142,17 @@ GL_ROUTINE_HANDLER(XQueryVersion) {
     return new Result(0, out);
 }
 
+#define USE_PBO 0
+
 GL_ROUTINE_HANDLER(XSwapBuffers) {
     XWindowAttributes attrib;
-    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable > (), pThis, true,
+    GLXDrawable drawable = GetDrawable(in->Get<GLXDrawable > (), pThis, false,
             attrib);
     glXSwapBuffers(GetDisplay(), drawable);
-    //if(pThis->RequestPending()) {
-    glReadPixels(0, 0, attrib.width, attrib.height, GL_BGRA, GL_UNSIGNED_BYTE,
-            pThis->GetFramebuffer());
-    //    pThis->Updated();
-    //}
+    static int skip = 100;
+    if(++skip > 4) {
+        pThis->Updated();
+        skip = 0;
+    }
     return new Result(0);
 }

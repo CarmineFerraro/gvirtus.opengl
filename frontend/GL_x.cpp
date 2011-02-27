@@ -137,7 +137,7 @@ extern "C" Bool glXMakeContextCurrent(Display * display, GLXDrawable draw,
         GLXDrawable read, GLXContext ctx) {
     Frontend *f = GetFrontend();
     Buffer *in = f->GetInputBuffer();
-    in->Add(true);
+    in->Add(false);
     in->Add(draw);
     XWindowAttributes draw_attrib;
     XGetWindowAttributes(display, draw, &draw_attrib);

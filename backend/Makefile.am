@@ -22,7 +22,7 @@ GLHandler_t.cpp\
 GLHandler_v.cpp\
 GLHandler_x.cpp
 
-libopengl_backend_la_LIBADD = -lGL
+libopengl_backend_la_LIBADD = -lGL -lXcomposite -lXrender
 
 GLHandler.h: GLHandler_handlers.h
 GLHandler.cpp: GLHandler_handlerspair.h

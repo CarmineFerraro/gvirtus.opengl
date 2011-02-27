@@ -66,7 +66,7 @@ public:
     virtual ~GLHandler();
     bool CanExecute(std::string routine);
     Result * Execute(std::string routine, Buffer * input_buffer);
-    const char *InitFramebuffer(size_t size, bool use_shm);
+    const char *InitFramebuffer(size_t size, bool use_shm, GLXDrawable d);
     char *GetFramebuffer();
     inline void Lock() {
         if(mpLock)
@@ -77,14 +77,15 @@ public:
             pthread_spin_unlock(mpLock);
     }
     inline void RequestUpdate() {
-        sem_post(&mProducer);
+        //sem_post(&mProducer);
         sem_wait(&mConsumer);
     }
     inline bool RequestPending() {
         return sem_trywait(&mProducer) == 0;
     }
     inline void Updated() {
-        sem_post(&mConsumer);
+        if(sem_trywait(&mConsumer))
+            sem_post(&mConsumer);
     }
 private:
     sem_t mProducer, mConsumer;
